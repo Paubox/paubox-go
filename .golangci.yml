@@ -1,0 +1,51 @@
+version: "2"
+
+formatters:
+  enable:
+    - gofmt          # enforce standard Go formatting
+    - gofumpt        # stricter superset of gofmt
+
+linters:
+  default: none
+  enable:
+    - bodyclose      # HTTP response bodies must be closed
+    - errcheck       # all errors must be handled
+    - gocritic       # opinionated style checks
+    - govet          # suspicious constructs
+    - ineffassign    # ineffectual assignments
+    - misspell       # common spelling mistakes in comments/strings
+    - noctx          # HTTP requests must carry a context
+    - revive         # fast, configurable linter
+    - staticcheck    # advanced static analysis (includes SA, S, ST checks)
+    - gosec          # security-focused checks
+
+linters-settings:
+  gosec:
+    excludes:
+      - G115  # integer overflow on bit shift — bounded in our retry backoff
+
+  revive:
+    rules:
+      - name: exported
+        arguments:
+          - "checkPrivateReceivers"
+          - "sayRepetitiveInsteadOfStutters"
+      - name: var-naming
+      - name: error-return
+      - name: if-return
+      - name: increment-decrement
+
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  exclude-rules:
+    # Test files may use underscore in names (table-driven tests).
+    - path: "_test\\.go"
+      linters: [revive]
+      text: "underscore"
