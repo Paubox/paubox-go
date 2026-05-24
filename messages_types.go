@@ -66,7 +66,11 @@ type MessageHeaders struct {
 
 // MarshalJSON serialises MessageHeaders so that custom X- headers are emitted
 // as top-level fields in the JSON object, which is what the Paubox API expects.
-func (h MessageHeaders) MarshalJSON() ([]byte, error) {
+// Value receiver is required: MessageHeaders is embedded as a value field on
+// Message, and encoding/json only invokes MarshalJSON via a pointer receiver
+// when the struct field is addressable (which is not the case for a Message
+// passed to json.Marshal by value through the wire types).
+func (h MessageHeaders) MarshalJSON() ([]byte, error) { //nolint:gocritic // hugeParam: see comment above
 	m := make(map[string]string, 5+len(h.CustomHeaders))
 
 	if h.Subject != "" {

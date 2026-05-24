@@ -19,33 +19,35 @@ linters:
     - staticcheck    # advanced static analysis (includes SA, S, ST checks)
     - gosec          # security-focused checks
 
-linters-settings:
-  gosec:
-    excludes:
-      - G115  # integer overflow on bit shift — bounded in our retry backoff
+  settings:
+    gosec:
+      excludes:
+        - G115  # integer overflow on bit shift — bounded in our retry backoff
 
-  revive:
+    revive:
+      rules:
+        - name: exported
+          arguments:
+            - "checkPrivateReceivers"
+            - "sayRepetitiveInsteadOfStutters"
+        - name: var-naming
+        - name: error-return
+        - name: if-return
+        - name: increment-decrement
+
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+
+  exclusions:
     rules:
-      - name: exported
-        arguments:
-          - "checkPrivateReceivers"
-          - "sayRepetitiveInsteadOfStutters"
-      - name: var-naming
-      - name: error-return
-      - name: if-return
-      - name: increment-decrement
-
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - style
-      - performance
+      # Test files may use underscore in names (table-driven tests).
+      - path: "_test\\.go"
+        linters: [revive]
+        text: "underscore"
 
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
-  exclude-rules:
-    # Test files may use underscore in names (table-driven tests).
-    - path: "_test\\.go"
-      linters: [revive]
-      text: "underscore"

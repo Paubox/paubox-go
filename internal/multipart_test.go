@@ -66,7 +66,7 @@ func TestBuildTemplateForm_BothFields(t *testing.T) {
 		t.Errorf("filename = %q, want template.hbs", files[0].Filename)
 	}
 	f, _ := files[0].Open()
-	defer f.Close() //nolint:errcheck
+	defer f.Close() //nolint:errcheck // close-on-defer for an in-memory part reader in a test
 	content, _ := io.ReadAll(f)
 	if string(content) != "Hello {{name}}" {
 		t.Errorf("body content = %q, want 'Hello {{name}}'", string(content))
@@ -136,7 +136,7 @@ func TestBuildTemplateForm_FileContentType(t *testing.T) {
 func TestBuildTemplateForm_WriteFieldError(t *testing.T) {
 	boom := errors.New("write error")
 	// Fail immediately on first write — hits the WriteField error branch.
-	_, _, err := buildTemplateForm(&errWriter{n: 0, err: boom}, "my-name", nil)
+	_, err := buildTemplateForm(&errWriter{n: 0, err: boom}, "my-name", nil)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -150,7 +150,7 @@ func TestBuildTemplateForm_CreatePartError(t *testing.T) {
 	// Allow enough bytes for the name field boundary, then fail on CreatePart.
 	// The multipart writer writes boundary lines before field content; failing
 	// early enough hits the CreatePart path.
-	_, _, err := buildTemplateForm(&errWriter{n: 2, err: boom}, "", []byte("body"))
+	_, err := buildTemplateForm(&errWriter{n: 2, err: boom}, "", []byte("body"))
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -160,7 +160,7 @@ func TestBuildTemplateForm_CloseError(_ *testing.T) {
 	boom := errors.New("write error")
 	// Allow everything through until Close() writes the final boundary.
 	// Use a large n so name and body write successfully.
-	_, _, err := buildTemplateForm(&errWriter{n: 1<<20 - 10, err: boom}, "n", []byte("b"))
+	_, err := buildTemplateForm(&errWriter{n: 1<<20 - 10, err: boom}, "n", []byte("b"))
 	// May or may not hit Close depending on exact byte count; we just confirm
 	// no panic and the function returns (error or nil is both acceptable here).
 	_ = err

@@ -1,6 +1,7 @@
 package paubox
 
 import (
+	"bytes"
 	"errors"
 	"net/http"
 	"testing"
@@ -98,7 +99,7 @@ func TestParseAPIError_UnparsableBody(t *testing.T) {
 func TestParseAPIError_RawPreserved(t *testing.T) {
 	raw := []byte(`{"errors":[{"code":400,"title":"Bad","details":"d"}]}`)
 	e := parseAPIError(400, "", raw)
-	if string(e.Raw) != string(raw) {
+	if !bytes.Equal(e.Raw, raw) {
 		t.Error("Raw body was not preserved")
 	}
 }

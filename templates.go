@@ -144,7 +144,7 @@ func (c *Client) doMultipartTemplate(ctx context.Context, method, path string, b
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close() //nolint:errcheck
+	defer resp.Body.Close() //nolint:errcheck // close-on-defer; read errors already reported by ReadAll above
 
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {

@@ -19,25 +19,24 @@ import (
 // Either field may be omitted (empty name or nil body) when only one needs
 // updating. Returns the encoded body bytes and the Content-Type header value
 // (which includes the multipart boundary).
-func BuildTemplateForm(name string, body []byte) ([]byte, string, error) {
+func BuildTemplateForm(name string, body []byte) (form []byte, contentType string, err error) {
 	var buf bytes.Buffer
-	encoded, ct, err := buildTemplateForm(&buf, name, body)
+	contentType, err = buildTemplateForm(&buf, name, body)
 	if err != nil {
 		return nil, "", err
 	}
-	_ = encoded // buf is already populated via the writer
-	return buf.Bytes(), ct, nil
+	return buf.Bytes(), contentType, nil
 }
 
 // buildTemplateForm writes the multipart form to w and returns the
 // Content-Type. Separated from BuildTemplateForm to allow error injection in
-// tests.
-func buildTemplateForm(w io.Writer, name string, body []byte) ([]byte, string, error) {
+// tests via a custom io.Writer.
+func buildTemplateForm(w io.Writer, name string, body []byte) (contentType string, err error) {
 	mw := multipart.NewWriter(w)
 
 	if name != "" {
 		if err := mw.WriteField("data[name]", name); err != nil {
-			return nil, "", fmt.Errorf("internal: multipart: writing name field: %w", err)
+			return "", fmt.Errorf("internal: multipart: writing name field: %w", err)
 		}
 	}
 
@@ -49,16 +48,16 @@ func buildTemplateForm(w io.Writer, name string, body []byte) ([]byte, string, e
 
 		part, err := mw.CreatePart(h)
 		if err != nil {
-			return nil, "", fmt.Errorf("internal: multipart: creating body part: %w", err)
+			return "", fmt.Errorf("internal: multipart: creating body part: %w", err)
 		}
 		if _, err := io.Copy(part, bytes.NewReader(body)); err != nil {
-			return nil, "", fmt.Errorf("internal: multipart: writing body part: %w", err)
+			return "", fmt.Errorf("internal: multipart: writing body part: %w", err)
 		}
 	}
 
 	if err := mw.Close(); err != nil {
-		return nil, "", fmt.Errorf("internal: multipart: closing writer: %w", err)
+		return "", fmt.Errorf("internal: multipart: closing writer: %w", err)
 	}
 
-	return nil, mw.FormDataContentType(), nil
+	return mw.FormDataContentType(), nil
 }
