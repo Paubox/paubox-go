@@ -306,6 +306,110 @@ Returns a `*SendMessageResponse` (same as `SendMessage`).
 
 ---
 
+## Forms
+
+The `FormsClient` is a separate, unauthenticated client for the Paubox Forms API (`pb_rforms` service). No API key or username is required.
+
+### `NewFormsClient`
+
+```go
+func NewFormsClient(opts ...FormsOption) (*FormsClient, error)
+```
+
+Creates a new Forms API client. Always succeeds unless an option panics.
+
+```go
+fc, err := paubox.NewFormsClient()
+```
+
+### Options
+
+| Option | Description |
+|---|---|
+| `WithFormsBaseURL(url string)` | Override the Forms base URL (no trailing slash). Default: `https://apx.paubox.com/forms`. |
+| `WithFormsHTTPClient(hc *http.Client)` | Replace the default HTTP client. Caller is responsible for TLS ≥ 1.2. |
+| `WithFormsTimeout(d time.Duration)` | Per-request timeout on the default HTTP client. |
+| `WithFormsRetry(cfg RetryConfig)` | Configure retry behaviour (same `RetryConfig` type as Email client). |
+| `WithFormsUserAgent(ua string)` | Prepend a custom token to the `User-Agent` header. |
+
+---
+
+### `GetForm`
+
+```go
+func (c *FormsClient) GetForm(ctx context.Context, formID string) (*Form, error)
+```
+
+Retrieves the metadata and field schema for a Paubox Form by its UUID. `GET /public/form_data/{formID}`
+
+**`Form`**
+
+| Field | Type | Description |
+|---|---|---|
+| `ID` | `string` | Form UUID. |
+| `Title` | `string` | Display title. |
+| `Description` | `*string` | Optional description. |
+| `FormHTML` | `*string` | Rendered HTML of the form, if generated. |
+| `FormJSON` | `*FormJSON` | Structured field schema. See below. |
+| `FormCSS` | `*string` | Custom CSS for the form. |
+| `VanityURL` | `*string` | Custom public URL slug. |
+| `Version` | `json.Number` | Schema version (may be returned as int or quoted string by the API). |
+| `Active` | `bool` | Whether the form accepts new submissions. |
+| `CustomerID` | `json.Number` | Owning account ID (may be returned as int or quoted string). |
+| `OldFormID` | `*int64` | Legacy ID if migrated from an older system. |
+| `CreatedAt` | `time.Time` | RFC 3339 creation timestamp. |
+| `UpdatedAt` | `time.Time` | RFC 3339 last-modified timestamp. |
+| `Recipient` | `*string` | Comma-separated email addresses that receive submission notifications. |
+| `Signable` | `bool` | Whether the form includes a signature field. |
+| `SignatureConfirmationLabel` | `*string` | Label shown on the signature confirmation. |
+| `SubmissionCount` | `int` | Total number of submissions received. |
+| `Type` | `*string` | Form type tag (e.g. `"marketing_form"`). |
+| `SubscriptionListID` | `*string` | Marketing subscription list, if applicable. |
+| `Deleted` | `bool` | Soft-delete flag. |
+| `Archived` | `bool` | Archive flag. |
+
+**`FormJSON`**
+
+| Field | Type | Description |
+|---|---|---|
+| `Body` | `[]FormField` | Ordered list of field definitions. |
+
+**`FormField`**
+
+| Field | Type | Description |
+|---|---|---|
+| `Type` | `string` | Field type (e.g. `"Text"`, `"Signature"`). |
+| `ID` | `string` | Field identifier. |
+| `Properties` | `json.RawMessage` | Type-specific properties. Schema varies by `Type`; inspect raw JSON as needed. |
+
+---
+
+### `SubmitForm`
+
+```go
+func (c *FormsClient) SubmitForm(ctx context.Context, formID string, sub FormSubmission) (*FormSubmitResponse, error)
+```
+
+Submits a response to a Paubox Form. `POST /api/forms/{formID}/submissions`
+
+Returns 201 No Content on success; `FormSubmitResponse` is an empty struct reserved for a future response body.
+
+**`FormSubmission`**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `FormData` | `map[string]any` | ✅ | Key-value pairs matching the form's field names. Must not be nil. |
+| `Attachments` | `[]FormAttachment` | | Optional file attachments. |
+
+**`FormAttachment`**
+
+| Field | Type | Description |
+|---|---|---|
+| `Name` | `string` | Filename (e.g. `"consent.pdf"`). |
+| `Content` | `string` | Base64-encoded file content. |
+
+---
+
 ## Errors
 
 All API errors are returned as `*PauboxError`. Use `errors.Is` with sentinels to match by HTTP status, or `errors.As` to access the full detail.

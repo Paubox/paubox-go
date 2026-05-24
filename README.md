@@ -190,6 +190,46 @@ _, err = client.DeleteTemplate(ctx, "template-id")
 </details>
 
 <details>
+<summary><strong>Paubox Forms — get schema and submit a response (no credentials required)</strong></summary>
+
+The `FormsClient` is separate from the Email API client and requires no API key.
+
+```go
+fc, err := paubox.NewFormsClient()
+if err != nil {
+    log.Fatal(err)
+}
+
+// Retrieve the form's metadata and field schema.
+form, err := fc.GetForm(ctx, "your-form-uuid")
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println("Form:", form.Title)
+for _, field := range form.FormJSON.Body {
+    fmt.Printf("  [%s] %s\n", field.Type, field.ID)
+}
+
+// Submit a response. Keys in FormData should match the form's field names.
+_, err = fc.SubmitForm(ctx, "your-form-uuid", paubox.FormSubmission{
+    FormData: map[string]any{
+        "name":  "Alice Example",
+        "email": "alice@example.com",
+    },
+    // Optional: attach a file.
+    Attachments: []paubox.FormAttachment{
+        {Name: "consent.pdf", Content: base64EncodedPDF},
+    },
+})
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+`FormsClient` supports the same options as `Client` (prefixed with `WithForms`): `WithFormsBaseURL`, `WithFormsHTTPClient`, `WithFormsTimeout`, `WithFormsRetry`, `WithFormsUserAgent`.
+</details>
+
+<details>
 <summary><strong>Send a templated message</strong></summary>
 
 Pass `TemplateValues` as a plain Go map — the SDK serialises it correctly. Do not pre-encode it as JSON.

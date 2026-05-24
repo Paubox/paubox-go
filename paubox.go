@@ -1,8 +1,9 @@
-// Package paubox provides a Go client for the Paubox Email API.
+// Package paubox provides a Go client for Paubox APIs.
 //
-// Paubox delivers HIPAA-compliant transactional email. This SDK covers
-// the Email API: sending individual and batch messages, retrieving delivery
-// dispositions, and managing dynamic Handlebars templates.
+// Paubox delivers HIPAA-compliant transactional email and secure web forms.
+// This SDK covers the Email API (sending messages, delivery dispositions,
+// dynamic Handlebars templates) and the public Forms API (retrieving form
+// schemas and submitting responses).
 //
 // The SDK has zero external runtime dependencies.
 //
