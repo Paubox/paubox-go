@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Set minimum Go version to 1.23 (was 1.26 in 0.1.0, but the code only uses 1.22+ features). CI now tests against Go 1.23, 1.24, 1.25, and 1.26.
+
 ## [0.1.0] - 2026-05-19
 
 ### Added
