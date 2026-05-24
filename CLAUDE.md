@@ -32,11 +32,23 @@ go install golang.org/x/vuln/cmd/govulncheck@latest
 
 ## Architecture
 
-**Module:** `github.com/paubox/paubox-go` — HIPAA-compliant transactional email SDK. **No external runtime dependencies** (stdlib only). Scope is Email API only: transactional messages + dynamic templates. The Paubox Marketing API is intentionally out of scope.
+**Module:** `github.com/paubox/paubox-go` — HIPAA-compliant transactional email SDK. **No external runtime dependencies** (stdlib only). Scope is Email API + Paubox Forms (public endpoints only). The Paubox Marketing API is intentionally out of scope.
 
-All API calls flow through a single choke-point: `client.go:do()`. It buffers the body once for replay across retries, sets `Authorization: Token token=<key>` (the only place this header is written — don't add it elsewhere), and handles the retry loop. `doJSON()` wraps `do()` with JSON marshal/unmarshal. `doMultipartTemplate()` in `templates.go` wraps `do()` for multipart uploads.
+### Authenticated Email client (`client.go`)
+
+All Email API calls flow through a single choke-point: `client.go:do()`. It buffers the body once for replay across retries, sets `Authorization: Token token=<key>` (the only place this header is written — don't add it elsewhere), and handles the retry loop. `doJSON()` wraps `do()` with JSON marshal/unmarshal. `doMultipartTemplate()` in `templates.go` wraps `do()` for multipart uploads.
 
 Base URL pattern: `https://api.paubox.net/v1/{username}/{path}` — the username is embedded by `endpointURL()`.
+
+### Unauthenticated Forms client (`forms.go`)
+
+`FormsClient` mirrors the `Client` pattern but carries **no API key and no username**. Its `do()` never sets an `Authorization` header — this is enforced by design (no `apiKey` field on the struct). Base URL: `https://apx.paubox.com/forms` (separate host from the Email API). URL pattern: `baseURL + path` — no username embedded.
+
+Public endpoints implemented:
+- `GET /public/form_data/:form_id` → `GetForm`
+- `POST /api/forms/:form_id/submissions` → `SubmitForm` (returns 201 No Content)
+
+`FormsClient.backoff()` duplicates `Client.backoff()` — do not refactor them into a shared helper without explicit approval, as it would couple the two clients.
 
 ### Retry logic
 
@@ -68,12 +80,16 @@ The Paubox API requires `template_values` to be a **JSON-encoded string**, not a
 
 ## Adding a new endpoint
 
+### Authenticated (Email API)
 1. Fetch the live schema from `https://docs.paubox.com/api-reference/` — don't guess from naming patterns.
 2. Add public request/response types to `*_types.go`; keep unexported wire types separate.
 3. Implement the method following the pattern in `messages.go` or `templates.go`: validate first, then call `doJSON` or `doMultipartTemplate`.
 4. Validation errors must be prefixed `"paubox: MethodName: "`.
 5. Tests (in the same package, not `_test`): happy path, correct method+path, request body assertions, all validation cases, ≥400/401/404 error responses via `httptest.Server`.
-6. Update `README.md` (add a `<details>` usage block) and `CHANGELOG.md`.
+6. Update `README.md` (add a `<details>` usage block), `api.md`, and `CHANGELOG.md`.
+
+### Unauthenticated (Forms API)
+Follow the same steps above but add methods to `FormsClient` in `forms.go`/`forms_types.go`. Use `c.doFormsJSON()` instead of `c.doJSON()`. Tests go in `forms_test.go`; use `newTestFormsClient(t, srv)`. Add a no-auth-header assertion for every new Forms method.
 
 ---
 
@@ -86,6 +102,7 @@ All tests use `httptest.NewServer`/`httptest.NewTLSServer` — no live API calls
 ## Security constraints
 
 - The API key lives only in `c.apiKey`; never log it or include it in errors.
+- `FormsClient` has no `apiKey` field — it must never send an `Authorization` header. Every new Forms method needs a test asserting `Authorization` is empty.
 - `PauboxError.Raw` is for debugging only; SDK code must never log it (may contain PHI).
 - `InsecureSkipVerify` must never be set, including in tests.
 - TLS 1.2 minimum must be maintained on the default transport.
