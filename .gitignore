@@ -1,0 +1,30 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Build output
+/paubox-go
+
+# Coverage
+coverage.out
+coverage.html
+
+# Go workspace
+go.work
+go.work.sum
+
+# Vendor
+vendor/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
