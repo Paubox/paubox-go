@@ -14,7 +14,7 @@ The official Go SDK for the [Paubox](https://www.paubox.com) Email API — HIPAA
 go get github.com/paubox/paubox-go
 ```
 
-Requires Go 1.22 or later. No external runtime dependencies.
+Requires Go 1.23 or later. No external runtime dependencies.
 
 ---
 

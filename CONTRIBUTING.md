@@ -20,7 +20,7 @@ cd paubox-go
 go mod download
 ```
 
-No external tools are needed to run tests — only a Go 1.22+ toolchain.
+No external tools are needed to run tests — only a Go 1.23+ toolchain.
 
 ## Running tests
 
@@ -41,8 +41,8 @@ All tests use `httptest.Server`. **There are no live API calls in the test suite
 ## Running the linter
 
 ```bash
-# Install once
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
+# Install once (golangci-lint v2 — required for the v2 .golangci.yml config)
+go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
 
 # Run
 golangci-lint run
