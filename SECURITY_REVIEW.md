@@ -1,7 +1,7 @@
 # Security Review — paubox-go v0.1.0
 
 Reviewed: 2026-05-19  
-Reviewer: Claude (automated security pass per project spec)  
+Reviewer: Paubox Engineering  
 Scope: all `.go` files in this repository
 
 ---

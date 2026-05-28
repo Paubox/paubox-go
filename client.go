@@ -17,7 +17,7 @@ import (
 const (
 	defaultBaseURL   = "https://api.paubox.net/v1"
 	defaultTimeout   = 30 * time.Second
-	defaultUserAgent = "paubox-go/0.1.0"
+	defaultUserAgent = "paubox-go/0.1.1"
 )
 
 // Client is the Paubox Email API client. Create one with [New] and reuse it
