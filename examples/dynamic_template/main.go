@@ -23,42 +23,57 @@ func main() {
 
 	ctx := context.Background()
 
+	const name = "appointment-confirmation"
+
 	// --- Create ---
 	// Template bodies use Handlebars syntax. Variables: {{variableName}}.
-	tmpl, err := client.CreateTemplate(ctx, &paubox.CreateTemplateRequest{
-		Name: "appointment-confirmation",
+	// The API confirms creation with a message but does not return the new
+	// template's ID — we resolve it from ListTemplates below.
+	created, err := client.CreateTemplate(ctx, &paubox.CreateTemplateRequest{
+		Name: name,
 		Body: []byte(`<p>Hello {{first_name}}, your appointment is on {{date}} at {{time}}.</p>`),
 	})
 	if err != nil {
 		log.Fatalf("CreateTemplate: %v", err)
 	}
-	fmt.Printf("Created: %s (ID: %s)\n", tmpl.Name, tmpl.ID)
+	fmt.Printf("Created: %s\n", created.Message)
 
-	// --- List ---
+	// --- List (and resolve the new template's ID by name) ---
 	list, err := client.ListTemplates(ctx)
 	if err != nil {
 		log.Fatalf("ListTemplates: %v", err)
 	}
 	fmt.Printf("Total templates in account: %d\n", len(list.Templates))
 
+	var id int64
+	for _, t := range list.Templates {
+		if t.Name == name {
+			id = t.ID
+			break
+		}
+	}
+	if id == 0 {
+		log.Fatalf("could not find template %q after creating it", name)
+	}
+
 	// --- Get ---
-	fetched, err := client.GetTemplate(ctx, tmpl.ID)
+	fetched, err := client.GetTemplate(ctx, id)
 	if err != nil {
 		log.Fatalf("GetTemplate: %v", err)
 	}
-	fmt.Printf("Fetched: %s\n", fetched.Name)
+	fmt.Printf("Fetched: %s (ID: %d)\n", fetched.Name, fetched.ID)
 
 	// --- Update (name only) ---
-	updated, err := client.UpdateTemplate(ctx, tmpl.ID, &paubox.UpdateTemplateRequest{
+	updated, err := client.UpdateTemplate(ctx, id, &paubox.UpdateTemplateRequest{
 		Name: "appointment-confirmation-v2",
 	})
 	if err != nil {
 		log.Fatalf("UpdateTemplate: %v", err)
 	}
-	fmt.Printf("Updated name: %s\n", updated.Name)
+	fmt.Printf("Updated: %s\n", updated.Message)
 
 	// --- Delete ---
-	del, err := client.DeleteTemplate(ctx, tmpl.ID)
+	del, err := client.DeleteTemplate(ctx, id)
 	if err != nil {
 		log.Fatalf("DeleteTemplate: %v", err)
 	}

@@ -9,20 +9,27 @@ import "time"
 // Template is a dynamic email template stored in your Paubox account.
 // Template bodies use Handlebars syntax: {{variableName}}.
 type Template struct {
-	// ID is the unique identifier for this template.
-	ID string `json:"id"`
+	// ID is the unique numeric identifier for this template.
+	ID int64 `json:"id"`
 
 	// Name is the human-readable template name.
 	Name string `json:"name"`
 
-	// Body is the Handlebars template content.
-	Body string `json:"body"`
+	// APICustomerID is the account identifier the template belongs to.
+	APICustomerID int64 `json:"api_customer_id,omitempty"`
 
-	// CreatedAt is the time the template was created.
-	CreatedAt time.Time `json:"created_at"`
+	// Body is the Handlebars template content. Present on a single-template
+	// fetch; not returned by ListTemplates.
+	Body string `json:"body,omitempty"`
 
-	// UpdatedAt is the time the template was last modified.
-	UpdatedAt time.Time `json:"updated_at"`
+	// Metadata holds arbitrary template metadata returned by the API.
+	Metadata map[string]any `json:"metadata,omitempty"`
+
+	// CreatedAt is the time the template was created, when returned.
+	CreatedAt *time.Time `json:"created_at,omitempty"`
+
+	// UpdatedAt is the time the template was last modified, when returned.
+	UpdatedAt *time.Time `json:"updated_at,omitempty"`
 }
 
 // ListTemplatesResponse is the response from [Client.ListTemplates].
@@ -35,6 +42,29 @@ type ListTemplatesResponse struct {
 type DeleteTemplateResponse struct {
 	// Message is the confirmation message returned by the API.
 	Message string `json:"message"`
+}
+
+// TemplateMutationResponse is returned by [Client.CreateTemplate] and
+// [Client.UpdateTemplate].
+//
+// The Paubox API confirms the operation with a human-readable message and
+// echoes the submitted name; it does NOT return the template's ID, body, or
+// timestamps. To obtain a newly created template's ID, call
+// [Client.ListTemplates] and match on Name.
+type TemplateMutationResponse struct {
+	// Message is the confirmation message returned by the API,
+	// e.g. "Template welcome created!".
+	Message string `json:"message"`
+
+	// Params echoes the accepted template parameters.
+	Params TemplateMutationParams `json:"params"`
+}
+
+// TemplateMutationParams holds the template parameters echoed back by the API
+// on create and update.
+type TemplateMutationParams struct {
+	// Name is the template name the API recorded.
+	Name string `json:"name"`
 }
 
 // ---------------------------------------------------------------------------

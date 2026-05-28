@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/paubox/paubox-go/internal"
 )
@@ -15,22 +16,23 @@ import (
 //
 // API: GET /dynamic_templates
 func (c *Client) ListTemplates(ctx context.Context) (*ListTemplatesResponse, error) {
-	var resp ListTemplatesResponse
-	if err := c.doJSON(ctx, http.MethodGet, "/dynamic_templates", nil, &resp); err != nil {
+	// The API returns a bare JSON array of templates, not an object wrapper.
+	var templates []Template
+	if err := c.doJSON(ctx, http.MethodGet, "/dynamic_templates", nil, &templates); err != nil {
 		return nil, err
 	}
-	return &resp, nil
+	return &ListTemplatesResponse{Templates: templates}, nil
 }
 
 // GetTemplate retrieves a single dynamic template by its ID.
 //
 // API: GET /dynamic_templates/{id}
-func (c *Client) GetTemplate(ctx context.Context, id string) (*Template, error) {
-	if id == "" {
-		return nil, fmt.Errorf("paubox: GetTemplate: id must not be empty")
+func (c *Client) GetTemplate(ctx context.Context, id int64) (*Template, error) {
+	if id <= 0 {
+		return nil, fmt.Errorf("paubox: GetTemplate: id must be a positive template ID")
 	}
 	var tmpl Template
-	if err := c.doJSON(ctx, http.MethodGet, "/dynamic_templates/"+id, nil, &tmpl); err != nil {
+	if err := c.doJSON(ctx, http.MethodGet, "/dynamic_templates/"+strconv.FormatInt(id, 10), nil, &tmpl); err != nil {
 		return nil, err
 	}
 	return &tmpl, nil
@@ -42,8 +44,11 @@ func (c *Client) GetTemplate(ctx context.Context, id string) (*Template, error) 
 // using multipart/form-data — callers pass raw bytes and the SDK handles
 // the encoding.
 //
+// The API confirms creation with a message but does not return the new
+// template's ID. To obtain it, call [Client.ListTemplates] and match on Name.
+//
 // API: POST /dynamic_templates
-func (c *Client) CreateTemplate(ctx context.Context, req *CreateTemplateRequest) (*Template, error) {
+func (c *Client) CreateTemplate(ctx context.Context, req *CreateTemplateRequest) (*TemplateMutationResponse, error) {
 	if req == nil {
 		return nil, fmt.Errorf("paubox: CreateTemplate: request must not be nil")
 	}
@@ -58,7 +63,7 @@ func (c *Client) CreateTemplate(ctx context.Context, req *CreateTemplateRequest)
 	if err != nil {
 		return nil, fmt.Errorf("paubox: CreateTemplate: %w", err)
 	}
-	return c.doMultipartTemplate(ctx, http.MethodPost, "/dynamic_templates", formBody, ct)
+	return c.doMultipartTemplateMutation(ctx, http.MethodPost, "/dynamic_templates", formBody, ct)
 }
 
 // UpdateTemplate modifies an existing dynamic template.
@@ -66,10 +71,13 @@ func (c *Client) CreateTemplate(ctx context.Context, req *CreateTemplateRequest)
 // Provide only the fields you want to change; omitted fields retain their
 // current values. At least one of Name or Body must be non-empty.
 //
+// The API confirms the update with a message and does not return the updated
+// template object.
+//
 // API: PATCH /dynamic_templates/{id}
-func (c *Client) UpdateTemplate(ctx context.Context, id string, req *UpdateTemplateRequest) (*Template, error) {
-	if id == "" {
-		return nil, fmt.Errorf("paubox: UpdateTemplate: id must not be empty")
+func (c *Client) UpdateTemplate(ctx context.Context, id int64, req *UpdateTemplateRequest) (*TemplateMutationResponse, error) {
+	if id <= 0 {
+		return nil, fmt.Errorf("paubox: UpdateTemplate: id must be a positive template ID")
 	}
 	if req == nil {
 		return nil, fmt.Errorf("paubox: UpdateTemplate: request must not be nil")
@@ -82,18 +90,18 @@ func (c *Client) UpdateTemplate(ctx context.Context, id string, req *UpdateTempl
 	if err != nil {
 		return nil, fmt.Errorf("paubox: UpdateTemplate: %w", err)
 	}
-	return c.doMultipartTemplate(ctx, http.MethodPatch, "/dynamic_templates/"+id, formBody, ct)
+	return c.doMultipartTemplateMutation(ctx, http.MethodPatch, "/dynamic_templates/"+strconv.FormatInt(id, 10), formBody, ct)
 }
 
 // DeleteTemplate permanently removes a dynamic template by its ID.
 //
 // API: DELETE /dynamic_templates/{id}
-func (c *Client) DeleteTemplate(ctx context.Context, id string) (*DeleteTemplateResponse, error) {
-	if id == "" {
-		return nil, fmt.Errorf("paubox: DeleteTemplate: id must not be empty")
+func (c *Client) DeleteTemplate(ctx context.Context, id int64) (*DeleteTemplateResponse, error) {
+	if id <= 0 {
+		return nil, fmt.Errorf("paubox: DeleteTemplate: id must be a positive template ID")
 	}
 	var resp DeleteTemplateResponse
-	if err := c.doJSON(ctx, http.MethodDelete, "/dynamic_templates/"+id, nil, &resp); err != nil {
+	if err := c.doJSON(ctx, http.MethodDelete, "/dynamic_templates/"+strconv.FormatInt(id, 10), nil, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
@@ -137,9 +145,10 @@ func (c *Client) SendTemplatedMessage(ctx context.Context, req *SendTemplatedMes
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-// doMultipartTemplate executes a multipart/form-data request and decodes the
-// response as a *Template. Used by CreateTemplate and UpdateTemplate.
-func (c *Client) doMultipartTemplate(ctx context.Context, method, path string, body []byte, contentType string) (*Template, error) {
+// doMultipartTemplateMutation executes a multipart/form-data request and
+// decodes the message-style response the API returns for template create and
+// update. Used by CreateTemplate and UpdateTemplate.
+func (c *Client) doMultipartTemplateMutation(ctx context.Context, method, path string, body []byte, contentType string) (*TemplateMutationResponse, error) {
 	resp, err := c.do(ctx, method, path, bytes.NewReader(body), contentType)
 	if err != nil {
 		return nil, err
@@ -155,11 +164,11 @@ func (c *Client) doMultipartTemplate(ctx context.Context, method, path string, b
 		return nil, parseAPIError(resp.StatusCode, resp.Header.Get("X-Request-Id"), raw)
 	}
 
-	var tmpl Template
-	if err := json.Unmarshal(raw, &tmpl); err != nil {
+	var out TemplateMutationResponse
+	if err := json.Unmarshal(raw, &out); err != nil {
 		return nil, fmt.Errorf("paubox: decoding template response: %w", err)
 	}
-	return &tmpl, nil
+	return &out, nil
 }
 
 func validateTemplatedMessageRequest(req *SendTemplatedMessageRequest) error {

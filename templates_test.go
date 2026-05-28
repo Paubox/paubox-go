@@ -14,13 +14,13 @@ import (
 )
 
 // templateFixture returns a JSON-encoded Template for use in test handlers.
-func templateFixture(id, name, body string) string {
+func templateFixture(id int64, name, body string) string {
 	t := Template{
 		ID:        id,
 		Name:      name,
 		Body:      body,
-		CreatedAt: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		UpdatedAt: time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
+		CreatedAt: Ptr(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)),
+		UpdatedAt: Ptr(time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)),
 	}
 	b, _ := json.Marshal(t)
 	return string(b)
@@ -51,7 +51,7 @@ func TestListTemplates_HappyPath(t *testing.T) {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		respondJSON(w, 200, `{"templates":[`+templateFixture("t1", "welcome", "Hi {{name}}")+`]}`)
+		respondJSON(w, 200, `[`+templateFixture(1, "welcome", "Hi {{name}}")+`]`)
 	}))
 	defer srv.Close()
 
@@ -62,14 +62,14 @@ func TestListTemplates_HappyPath(t *testing.T) {
 	if len(resp.Templates) != 1 {
 		t.Fatalf("len = %d, want 1", len(resp.Templates))
 	}
-	if resp.Templates[0].ID != "t1" || resp.Templates[0].Name != "welcome" {
+	if resp.Templates[0].ID != 1 || resp.Templates[0].Name != "welcome" {
 		t.Errorf("unexpected template: %+v", resp.Templates[0])
 	}
 }
 
 func TestListTemplates_Empty(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		respondJSON(w, 200, `{"templates":[]}`)
+		respondJSON(w, 200, `[]`)
 	}))
 	defer srv.Close()
 
@@ -100,26 +100,26 @@ func TestListTemplates_Unauthorized(t *testing.T) {
 
 func TestGetTemplate_HappyPath(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/testuser/dynamic_templates/tmpl-1" {
+		if r.URL.Path != "/testuser/dynamic_templates/1" {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		respondJSON(w, 200, templateFixture("tmpl-1", "onboard", "Hello {{name}}"))
+		respondJSON(w, 200, templateFixture(1, "onboard", "Hello {{name}}"))
 	}))
 	defer srv.Close()
 
-	tmpl, err := newTestClient(t, srv).GetTemplate(context.Background(), "tmpl-1")
+	tmpl, err := newTestClient(t, srv).GetTemplate(context.Background(), 1)
 	if err != nil {
 		t.Fatalf("GetTemplate() error: %v", err)
 	}
-	if tmpl.ID != "tmpl-1" {
-		t.Errorf("ID = %q, want tmpl-1", tmpl.ID)
+	if tmpl.ID != 1 {
+		t.Errorf("ID = %d, want 1", tmpl.ID)
 	}
 }
 
 func TestGetTemplate_EmptyID(t *testing.T) {
 	c, _ := New("k", "u")
-	_, err := c.GetTemplate(context.Background(), "")
+	_, err := c.GetTemplate(context.Background(), 0)
 	if err == nil {
 		t.Fatal("expected error for empty id")
 	}
@@ -131,7 +131,7 @@ func TestGetTemplate_NotFound(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	_, err := newTestClient(t, srv).GetTemplate(context.Background(), "ghost")
+	_, err := newTestClient(t, srv).GetTemplate(context.Background(), 999)
 	if !errors.Is(err, ErrNotFound) {
 		t.Errorf("expected ErrNotFound, got %v", err)
 	}
@@ -167,19 +167,22 @@ func TestCreateTemplate_HappyPath(t *testing.T) {
 			}
 			formBody = sb.String()
 		}
-		respondJSON(w, 200, templateFixture("new-1", formName, formBody))
+		respondJSON(w, 201, `{"message":"Template `+formName+` created!","params":{"name":"`+formName+`"}}`)
 	}))
 	defer srv.Close()
 
-	tmpl, err := newTestClient(t, srv).CreateTemplate(context.Background(), &CreateTemplateRequest{
+	resp, err := newTestClient(t, srv).CreateTemplate(context.Background(), &CreateTemplateRequest{
 		Name: "my-tmpl",
 		Body: []byte("Hello {{first_name}}"),
 	})
 	if err != nil {
 		t.Fatalf("CreateTemplate() error: %v", err)
 	}
-	if tmpl.ID != "new-1" {
-		t.Errorf("ID = %q, want new-1", tmpl.ID)
+	if !strings.Contains(resp.Message, "created") {
+		t.Errorf("Message = %q, want it to contain \"created\"", resp.Message)
+	}
+	if resp.Params.Name != "my-tmpl" {
+		t.Errorf("Params.Name = %q, want my-tmpl", resp.Params.Name)
 	}
 	if formName != "my-tmpl" {
 		t.Errorf("form data[name] = %q, want my-tmpl", formName)
@@ -237,29 +240,29 @@ func TestUpdateTemplate_HappyPath(t *testing.T) {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
-		respondJSON(w, 200, templateFixture("t1", "updated-name", "new body"))
+		respondJSON(w, 200, `{"message":"Template updated-name updated!","params":{"name":"updated-name"}}`)
 	}))
 	defer srv.Close()
 
-	tmpl, err := newTestClient(t, srv).UpdateTemplate(context.Background(), "t1", &UpdateTemplateRequest{
+	resp, err := newTestClient(t, srv).UpdateTemplate(context.Background(), 1, &UpdateTemplateRequest{
 		Name: "updated-name",
 		Body: []byte("new body"),
 	})
 	if err != nil {
 		t.Fatalf("UpdateTemplate() error: %v", err)
 	}
-	if tmpl.Name != "updated-name" {
-		t.Errorf("Name = %q, want updated-name", tmpl.Name)
+	if resp.Params.Name != "updated-name" {
+		t.Errorf("Params.Name = %q, want updated-name", resp.Params.Name)
 	}
 }
 
 func TestUpdateTemplate_NameOnly(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		respondJSON(w, 200, templateFixture("t1", "new-name", "body"))
+		respondJSON(w, 200, `{"message":"Template new-name updated!","params":{"name":"new-name"}}`)
 	}))
 	defer srv.Close()
 
-	_, err := newTestClient(t, srv).UpdateTemplate(context.Background(), "t1", &UpdateTemplateRequest{Name: "new-name"})
+	_, err := newTestClient(t, srv).UpdateTemplate(context.Background(), 1, &UpdateTemplateRequest{Name: "new-name"})
 	if err != nil {
 		t.Fatalf("UpdateTemplate() error: %v", err)
 	}
@@ -268,13 +271,13 @@ func TestUpdateTemplate_NameOnly(t *testing.T) {
 func TestUpdateTemplate_Validation(t *testing.T) {
 	tests := []struct {
 		name    string
-		id      string
+		id      int64
 		req     *UpdateTemplateRequest
 		wantErr string
 	}{
-		{"empty id", "", &UpdateTemplateRequest{Name: "n"}, "id"},
-		{"nil req", "x", nil, "nil"},
-		{"no fields", "x", &UpdateTemplateRequest{}, "at least one"},
+		{"empty id", 0, &UpdateTemplateRequest{Name: "n"}, "id"},
+		{"nil req", 1, nil, "nil"},
+		{"no fields", 1, &UpdateTemplateRequest{}, "at least one"},
 	}
 	c, _ := New("k", "u")
 	for _, tc := range tests {
@@ -296,7 +299,7 @@ func TestUpdateTemplate_Validation(t *testing.T) {
 
 func TestDeleteTemplate_HappyPath(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodDelete || r.URL.Path != "/testuser/dynamic_templates/del-1" {
+		if r.Method != http.MethodDelete || r.URL.Path != "/testuser/dynamic_templates/5" {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
@@ -304,7 +307,7 @@ func TestDeleteTemplate_HappyPath(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	resp, err := newTestClient(t, srv).DeleteTemplate(context.Background(), "del-1")
+	resp, err := newTestClient(t, srv).DeleteTemplate(context.Background(), 5)
 	if err != nil {
 		t.Fatalf("DeleteTemplate() error: %v", err)
 	}
@@ -315,7 +318,7 @@ func TestDeleteTemplate_HappyPath(t *testing.T) {
 
 func TestDeleteTemplate_EmptyID(t *testing.T) {
 	c, _ := New("k", "u")
-	_, err := c.DeleteTemplate(context.Background(), "")
+	_, err := c.DeleteTemplate(context.Background(), 0)
 	if err == nil {
 		t.Fatal("expected error for empty id")
 	}
@@ -327,7 +330,7 @@ func TestDeleteTemplate_NotFound(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	_, err := newTestClient(t, srv).DeleteTemplate(context.Background(), "ghost")
+	_, err := newTestClient(t, srv).DeleteTemplate(context.Background(), 999)
 	if !errors.Is(err, ErrNotFound) {
 		t.Errorf("expected ErrNotFound, got %v", err)
 	}
