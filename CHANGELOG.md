@@ -7,19 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.1] - 2026-05-28
+## [0.1.0] - 2026-05-28
 
-### Changed
-- Set minimum Go version to 1.23. CI now tests against Go 1.23, 1.24, 1.25, and 1.26.
-- Migrated golangci-lint configuration to the v2 format; CI now runs golangci-lint v2.12.2 via `golangci-lint-action@v8`.
-
-### Fixed
-- Corrected the stated minimum Go version (1.23) and the golangci-lint install command (v2) in `README.md` and `CONTRIBUTING.md`.
-
-### Docs
-- Added a `NOTICE` file (Apache 2.0).
-
-## [0.1.0] - 2026-05-19
+Initial public release.
 
 ### Added
 - Initial release of the Paubox Go SDK (Email API)
@@ -33,10 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Ptr[T]` generic helper for optional pointer-typed fields
 - Full `httptest`-based test suite — no live API calls required
 - Examples: `send_single`, `send_batch`, `dynamic_template`, `send_templated`
-- `.golangci.yml` strict linter configuration
-- GitHub Actions CI: test (Go 1.22 + 1.23), lint, govulncheck
-- `SECURITY.md` with vulnerability disclosure policy
+- `.golangci.yml` strict linter configuration (golangci-lint v2)
+- GitHub Actions CI: test (Go 1.23–1.26), lint, govulncheck
+- `SECURITY.md` with vulnerability disclosure policy and `NOTICE` (Apache 2.0)
 
-[Unreleased]: https://github.com/paubox/paubox-go/compare/v0.1.1...HEAD
-[0.1.1]: https://github.com/paubox/paubox-go/compare/v0.1.0...v0.1.1
+### Requirements
+- Requires Go 1.23 or later.
+
+[Unreleased]: https://github.com/paubox/paubox-go/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/paubox/paubox-go/releases/tag/v0.1.0
