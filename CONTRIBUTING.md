@@ -2,15 +2,7 @@
 
 Thank you for your interest in contributing!
 
-## Developer Certificate of Origin (DCO)
-
-All commits must be signed off. Add `-s` to your commit command:
-
-```bash
-git commit -s -m "your message"
-```
-
-This adds a `Signed-off-by` trailer certifying that you have the right to submit the contribution under the Apache 2.0 license. See [developercertificate.org](https://developercertificate.org) for the full text.
+By submitting a contribution, you agree that it is licensed under the project's [Apache 2.0 license](LICENSE).
 
 ## Getting started
 

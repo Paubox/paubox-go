@@ -307,7 +307,7 @@ Paubox is a HIPAA-compliant email platform. This SDK is designed for use in regu
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). All contributions require a DCO sign-off (`git commit -s`).
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
