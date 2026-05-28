@@ -167,25 +167,33 @@ For production workloads, prefer [Paubox webhooks](https://docs.paubox.com/api-r
 Templates use [Handlebars](https://handlebarsjs.com/) syntax.
 
 ```go
-// Create
-tmpl, err := client.CreateTemplate(ctx, &paubox.CreateTemplateRequest{
+// Create — returns a confirmation message, NOT the new template's ID.
+created, err := client.CreateTemplate(ctx, &paubox.CreateTemplateRequest{
     Name: "appointment-confirmation",
     Body: []byte(`<p>Hello {{first_name}}, your appointment is on {{date}}.</p>`),
 })
+fmt.Println(created.Message) // "Template appointment-confirmation created!"
 
-// List
+// List — also used to resolve a template's numeric ID by name.
 list, err := client.ListTemplates(ctx)
+var id int64
+for _, t := range list.Templates {
+    if t.Name == "appointment-confirmation" {
+        id = t.ID // template IDs are int64
+        break
+    }
+}
 
 // Get
-tmpl, err := client.GetTemplate(ctx, "template-id")
+tmpl, err := client.GetTemplate(ctx, id)
 
 // Update — supply only the fields to change
-tmpl, err := client.UpdateTemplate(ctx, "template-id", &paubox.UpdateTemplateRequest{
+_, err = client.UpdateTemplate(ctx, id, &paubox.UpdateTemplateRequest{
     Name: "appointment-confirmation-v2",
 })
 
 // Delete
-_, err = client.DeleteTemplate(ctx, "template-id")
+_, err = client.DeleteTemplate(ctx, id)
 ```
 </details>
 

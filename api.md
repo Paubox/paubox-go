@@ -215,7 +215,7 @@ Returns all dynamic templates in your account. `GET /dynamic_templates`
 ### `GetTemplate`
 
 ```go
-func (c *Client) GetTemplate(ctx context.Context, id string) (*Template, error)
+func (c *Client) GetTemplate(ctx context.Context, id int64) (*Template, error)
 ```
 
 Returns a single template by its ID. `GET /dynamic_templates/{id}`
@@ -225,10 +225,12 @@ Returns a single template by its ID. `GET /dynamic_templates/{id}`
 ### `CreateTemplate`
 
 ```go
-func (c *Client) CreateTemplate(ctx context.Context, req *CreateTemplateRequest) (*Template, error)
+func (c *Client) CreateTemplate(ctx context.Context, req *CreateTemplateRequest) (*TemplateMutationResponse, error)
 ```
 
 Uploads a new Handlebars template. Internally uses `multipart/form-data`. `POST /dynamic_templates`
+
+> The API confirms creation with a message and **does not return the new template's ID**. To get it, call `ListTemplates` and match on `Name`.
 
 **`CreateTemplateRequest`**
 
@@ -237,15 +239,22 @@ Uploads a new Handlebars template. Internally uses `multipart/form-data`. `POST 
 | `Name` | `string` | ✅ | Human-readable template name. |
 | `Body` | `[]byte` | ✅ | Handlebars template content. |
 
+**`TemplateMutationResponse`** (returned by `CreateTemplate` and `UpdateTemplate`)
+
+| Field | Type | Description |
+|---|---|---|
+| `Message` | `string` | Confirmation message, e.g. `"Template welcome created!"`. |
+| `Params.Name` | `string` | The template name the API recorded. |
+
 ---
 
 ### `UpdateTemplate`
 
 ```go
-func (c *Client) UpdateTemplate(ctx context.Context, id string, req *UpdateTemplateRequest) (*Template, error)
+func (c *Client) UpdateTemplate(ctx context.Context, id int64, req *UpdateTemplateRequest) (*TemplateMutationResponse, error)
 ```
 
-Modifies an existing template. Supply only the fields to change; omitted fields retain their current values. At least one field must be non-empty. `PATCH /dynamic_templates/{id}`
+Modifies an existing template. Supply only the fields to change; omitted fields retain their current values. At least one field must be non-empty. Returns a confirmation message, not the updated template. `PATCH /dynamic_templates/{id}`
 
 **`UpdateTemplateRequest`**
 
@@ -259,7 +268,7 @@ Modifies an existing template. Supply only the fields to change; omitted fields 
 ### `DeleteTemplate`
 
 ```go
-func (c *Client) DeleteTemplate(ctx context.Context, id string) (*DeleteTemplateResponse, error)
+func (c *Client) DeleteTemplate(ctx context.Context, id int64) (*DeleteTemplateResponse, error)
 ```
 
 Permanently removes a template. `DELETE /dynamic_templates/{id}`
@@ -298,11 +307,13 @@ Returns a `*SendMessageResponse` (same as `SendMessage`).
 
 | Field | Type | Description |
 |---|---|---|
-| `ID` | `string` | Unique template identifier. |
+| `ID` | `int64` | Unique numeric template identifier. |
 | `Name` | `string` | Human-readable name. |
-| `Body` | `string` | Handlebars template content. |
-| `CreatedAt` | `time.Time` | Creation timestamp. |
-| `UpdatedAt` | `time.Time` | Last-modified timestamp. |
+| `APICustomerID` | `int64` | Account the template belongs to. |
+| `Body` | `string` | Handlebars template content. Returned by `GetTemplate`; empty in `ListTemplates`. |
+| `Metadata` | `map[string]any` | Arbitrary template metadata, when returned. |
+| `CreatedAt` | `*time.Time` | Creation timestamp, when returned. |
+| `UpdatedAt` | `*time.Time` | Last-modified timestamp, when returned. |
 
 ---
 
