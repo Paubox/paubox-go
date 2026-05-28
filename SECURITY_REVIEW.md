@@ -1,4 +1,4 @@
-# Security Review — paubox-go v0.1.0
+# Security Review — paubox-go v0.1.1
 
 Reviewed: 2026-05-19  
 Reviewer: Paubox Engineering  
@@ -71,7 +71,7 @@ Transport: &http.Transport{
 
 **Low finding — header injection in CustomHeaders:** `MessageHeaders.CustomHeaders` accepts arbitrary string keys and values and serialises them directly into the JSON body sent to the API. A caller could supply a key containing a newline or special character. The Paubox API is the ultimate gatekeeper here (it validates header names server-side), but the SDK provides no client-side validation.
 
-**Recommendation:** In a future release, add validation that custom header keys match `^[Xx]-[A-Za-z0-9-]+$` and that values contain no CR/LF characters. This is a defence-in-depth measure, not a blocking issue for v0.1.0 since the API rejects invalid headers.
+**Recommendation:** In a future release, add validation that custom header keys match `^[Xx]-[A-Za-z0-9-]+$` and that values contain no CR/LF characters. This is a defence-in-depth measure, not a blocking issue for v0.1.1 since the API rejects invalid headers.
 
 **Low finding — template ID path injection:** Template IDs are interpolated directly into URL paths (e.g. `/dynamic_templates/` + id). If a caller passes a value like `../messages`, it would change the request path. However: (a) the `id` comes from a previous `ListTemplates`/`CreateTemplate` API response, not from untrusted user input in typical use; (b) the `net/http` client normalises paths.
 
