@@ -326,3 +326,8 @@ Apache 2.0 — see [LICENSE](LICENSE).
 - **API documentation:** https://docs.paubox.com/api-reference/
 - **Security vulnerabilities:** security@paubox.com — see [SECURITY.md](SECURITY.md)
 - **General support:** https://www.paubox.com/contact
+## 💬 Community & support
+
+Questions, ideas, or want to share what you built? Join the **[Paubox Community](https://github.com/Paubox/community/discussions)** — the single home for discussions across every Paubox SDK and API.
+
+🔐 Found a security issue? Email **devops@paubox.com** — please don't post it publicly.
