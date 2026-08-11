@@ -229,6 +229,36 @@ func TestClient_RetryNonIdempotent_WhenEnabled(t *testing.T) {
 	}
 }
 
+// Regression test: rand.Int64N panics when n <= 0, so a RetryConfig with
+// WaitMin left at 0 (exp = 0 on every attempt) must not panic in
+// retryBackoff on the first retry of a retryable GET.
+func TestClient_RetryBackoff_ZeroWaitMinDoesNotPanic(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		if calls == 1 {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	resp, err := doHTTP(context.Background(), srv.Client(), RetryConfig{MaxAttempts: 3},
+		http.MethodGet, srv.URL, nil, "", "", defaultUserAgent)
+	if err != nil {
+		t.Fatalf("doHTTP() error: %v", err)
+	}
+	_ = resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("StatusCode = %d, want 200", resp.StatusCode)
+	}
+	if calls != 2 {
+		t.Errorf("calls = %d, want 2", calls)
+	}
+}
+
 func TestClient_ContextCancellation(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		time.Sleep(500 * time.Millisecond)

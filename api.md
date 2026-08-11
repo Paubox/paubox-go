@@ -35,11 +35,11 @@ type RetryConfig struct {
     MaxAttempts        int           // total attempts (1 = no retries)
     WaitMin            time.Duration // minimum backoff
     WaitMax            time.Duration // maximum backoff (cap)
-    RetryNonIdempotent bool          // enable retries for POST and PATCH
+    RetryNonIdempotent bool          // enable retries for POST, PUT, and PATCH
 }
 ```
 
-Default: 3 attempts, 100 ms–2 s exponential backoff with jitter, GET/DELETE only. The `Retry-After` response header is honoured when present.
+Default: 3 attempts, 100 ms–2 s exponential backoff with jitter, GET/DELETE only. The `Retry-After` response header is honoured when present. The same `RetryConfig` type configures both the Email client (`WithRetry`) and the Forms client (`WithFormsRetry`).
 
 ---
 
@@ -317,9 +317,322 @@ Returns a `*SendMessageResponse` (same as `SendMessage`).
 
 ---
 
+## Paubox Forms
+
+The Forms API uses a dedicated client. Protected endpoints authenticate with a **scoped API key** carrying the `forms` scope, sent as `Authorization: Bearer <key>` — a different scheme from the Email API's `Token token=` header. Form and submission IDs are UUID strings.
+
+### `NewForms`
+
+```go
+func NewForms(apiKey string, opts ...FormsOption) (*FormsClient, error)
+```
+
+Creates a new Forms client. `apiKey` may be empty (or whitespace-only, which is treated as empty): that yields a **public-only client** on which only `GetPublicForm` and `SubmitForm` work — every protected method fails fast with an error before any request is sent.
+
+```go
+forms, err := paubox.NewForms("your-scoped-api-key")
+public, err := paubox.NewForms("") // public endpoints only
+```
+
+Defaults match the Email client: 30 s timeout, TLS 1.2 minimum, same retry policy.
+
+### Forms options
+
+| Option | Description |
+|---|---|
+| `WithFormsBaseURL(url string)` | Override the Forms base URL (trailing slash trimmed). Default `https://api.paubox.com/v1/forms` — service routes are appended verbatim, assuming the production gateway forwards the remaining path unchanged. Point at e.g. `http://localhost:3000` for a local Forms service. |
+| `WithFormsHTTPClient(hc *http.Client)` | Replace the default HTTP client. Caller is responsible for TLS ≥ 1.2 and not setting `InsecureSkipVerify`. |
+| `WithFormsTimeout(d time.Duration)` | Set the per-request timeout on the default HTTP client. Ignored if `WithFormsHTTPClient` is also used. |
+| `WithFormsRetry(cfg RetryConfig)` | Configure retry behaviour (same `RetryConfig` as the Email client). GET/DELETE retry on 429/5xx; POST/PUT are not retried unless `RetryNonIdempotent` is true. |
+| `WithFormsUserAgent(ua string)` | Prepend a custom token to the `User-Agent` header. The SDK identifier is always appended. |
+
+---
+
+### `ListForms`
+
+```go
+func (c *FormsClient) ListForms(ctx context.Context, params *ListFormsParams) (*ListFormsResponse, error)
+```
+
+Lists forms visible to the API key's customer. `params` may be nil for the server defaults (page 1, 50 items, ordered by `created_at` descending). `GET /api/forms`
+
+**`ListFormsParams`** (zero values are omitted from the query string)
+
+| Field | Type | Query param | Description |
+|---|---|---|---|
+| `CustomerID` | `int` | `customer_id` | Filter by customer. |
+| `FormID` | `string` | `form_id` | Filter to a single form. |
+| `Search` | `string` | `search` | Matches title/description (LIKE). |
+| `Order` | `string` | `order` | `"asc"` or `"desc"` (server default `desc`). |
+| `OrderBy` | `string` | `order_by` | Allowlisted server-side: `title`, `updated_at`, `submission_count`; default `created_at`. |
+| `Archived` | `*bool` | `archived` | Filter by archived state. Use `paubox.Ptr`. |
+| `Active` | `*bool` | `active` | Filter by active state. Use `paubox.Ptr`. |
+| `Page` | `int` | `page` | 1-based page number. |
+| `Items` | `int` | `items` | Page size. Server caps at 100, default 50. |
+
+**`ListFormsResponse`**
+
+| Field | Type | Description |
+|---|---|---|
+| `Results` | `[]Form` | The current page of forms. |
+| `PageInfo` | `FormPageInfo` | Pagination metadata: `Count` (`int64`, total matches), `Pages`, `Page`, `Items`. |
+
+---
+
+### `CreateForm`
+
+```go
+func (c *FormsClient) CreateForm(ctx context.Context, req *CreateFormRequest) (*CreateFormResponse, error)
+```
+
+Creates a new form and returns its UUID. `POST /api/forms`
+
+**`CreateFormRequest`**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `Title` | `string` | ✅ | Form title. |
+| `CustomerID` | `int` | ✅ | Owning customer ID (> 0). |
+| `FormJSON` | `json.RawMessage` | ✅ | Form-builder JSON definition. |
+| `Version` | `int` | | Required by the API; the SDK defaults 0 → 1. |
+| `Description` | `string` | | Form description. |
+| `FormHTML` | `string` | | Rendered HTML for the form. |
+| `FormCSS` | `string` | | Custom CSS. |
+| `Recipient` | `string` | | Comma-separated notification recipient emails. |
+| `Signable` | `bool` | | Enable signature support. |
+| `SignatureConfirmationLabel` | `string` | | Label for the signature confirmation checkbox. |
+| `SubscriptionListID` | `string` | | Linked marketing subscription list. |
+| `Type` | `string` | | Form type (e.g. `"marketing_form"`). |
+| `Active` | `bool` | | Whether the form accepts submissions. |
+| `SubmissionCount` | `int` | | Seeds the submission counter. |
+
+**`CreateFormResponse`**
+
+| Field | Type | Description |
+|---|---|---|
+| `ID` | `string` | The new form's UUID. |
+
+---
+
+### `GetForm`
+
+```go
+func (c *FormsClient) GetForm(ctx context.Context, id string) (*Form, error)
+```
+
+Retrieves a single form by UUID. The SDK unwraps the API's `{"data": {…}}` envelope. `GET /api/forms/{id}`
+
+---
+
+### `UpdateForm`
+
+```go
+func (c *FormsClient) UpdateForm(ctx context.Context, id string, req *UpdateFormRequest) (*UpdateFormResponse, error)
+```
+
+Applies a partial update. PATCH-style semantics: nil pointer fields (and a nil `FormJSON`) are omitted from the request and left unchanged on the server — use `paubox.Ptr` to set fields inline. `PUT /api/forms/{id}`
+
+**`UpdateFormRequest`**
+
+| Field | Type | Description |
+|---|---|---|
+| `Title` | `*string` | New title. |
+| `Description` | `*string` | New description. |
+| `FormJSON` | `json.RawMessage` | New form-builder JSON definition. |
+| `VanityURL` | `*string` | New vanity URL slug. |
+| `Recipient` | `*string` | New comma-separated notification recipient list. |
+| `Active` | `*bool` | Toggle whether the form accepts submissions. |
+| `SubscriptionListID` | `*string` | New linked subscription list. |
+
+**`UpdateFormResponse`**
+
+| Field | Type | Description |
+|---|---|---|
+| `Detail` | `string` | Human-readable result message. |
+| `FormID` | `string` | UUID of the updated form. |
+
+---
+
+### `ArchiveForm` / `UnarchiveForm`
+
+```go
+func (c *FormsClient) ArchiveForm(ctx context.Context, id string) (*FormActionResponse, error)
+func (c *FormsClient) UnarchiveForm(ctx context.Context, id string) (*FormActionResponse, error)
+```
+
+Archiving also deactivates the form; unarchiving does **not** reactivate it (toggle `Active` via `UpdateForm`). `POST /api/forms/{id}/archive`, `POST /api/forms/{id}/unarchive`
+
+**`FormActionResponse`**
+
+| Field | Type | Description |
+|---|---|---|
+| `Detail` | `string` | Human-readable result message. |
+
+---
+
+### `CopyForm`
+
+```go
+func (c *FormsClient) CopyForm(ctx context.Context, req *CopyFormRequest) (*Form, error)
+```
+
+Duplicates an existing form under a new title and returns the new `Form` (bare object, no envelope). The copy starts with a fresh submission counter and no vanity URL. `POST /api/forms/copy`
+
+**`CopyFormRequest`**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `FormID` | `string` | ✅ | UUID of the form to copy. |
+| `Title` | `string` | ✅ | Title for the copy. |
+
+---
+
+### `GetFormStats`
+
+```go
+func (c *FormsClient) GetFormStats(ctx context.Context, params *FormStatsParams) (*FormStats, error)
+```
+
+Retrieves aggregate form statistics. `params` may be nil, scoping the stats to the API key's customer; set `FormStatsParams.CustomerID` to query another customer. `GET /api/forms/stats`
+
+**`FormStats`**
+
+| Field | Type | Description |
+|---|---|---|
+| `ActiveFormCount` | `int64` | Number of active forms. |
+| `TotalSubmissionCount` | `int64` | All-time submission count. |
+| `SubmissionsLast7Days` | `int64` | Submissions over the last 7 days. |
+
+---
+
+### `GetPublicForm` (public — no API key required)
+
+```go
+func (c *FormsClient) GetPublicForm(ctx context.Context, formID string) (*Form, error)
+```
+
+Retrieves the public definition of an active form. Works on a keyless client. Returns 404 (`ErrNotFound`) when the form is inactive, archived, or deleted. `GET /public/form_data/{formID}`
+
+---
+
+### `SubmitForm` (public — no API key required)
+
+```go
+func (c *FormsClient) SubmitForm(ctx context.Context, formID string, req *SubmitFormRequest) error
+```
+
+Submits a filled-out form. Works on a keyless client. A successful submission returns nil (the service responds 201 with an empty body). `POST /api/forms/{formID}/submissions`
+
+**`SubmitFormRequest`**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `FormData` | `map[string]any` | ✅ | Submitted field values keyed by the form's slugified field names. Sent as a real JSON object — do not pre-encode. |
+| `Attachments` | `[]FormSubmissionAttachment` | | Optional file attachments. |
+
+**`FormSubmissionAttachment`**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `Name` | `string` | ✅ | Filename. |
+| `Content` | `[]byte` | ✅ | Raw file bytes. The SDK base64-encodes them on the wire. |
+
+---
+
+### `ListFormSubmissions`
+
+```go
+func (c *FormsClient) ListFormSubmissions(ctx context.Context, formID string, params *ListFormSubmissionsParams) (*ListFormSubmissionsResponse, error)
+```
+
+Lists a form's submissions. `params` may be nil for the server defaults. `GET /api/forms/{formID}/submissions`
+
+**`ListFormSubmissionsParams`** (zero values are omitted from the query string)
+
+| Field | Type | Query param | Description |
+|---|---|---|---|
+| `SubmissionID` | `string` | `submission_id` | Filter to one submission. |
+| `OrderBy` | `string` | `order_by` | Allowlisted server-side: `submitter_email`; default `created_at`. |
+| `Order` | `string` | `order` | `"asc"` or `"desc"`. |
+| `Page` | `int` | `page` | 1-based page number. |
+| `Items` | `int` | `items` | Page size. Server caps at 100. |
+
+**`ListFormSubmissionsResponse`**
+
+| Field | Type | Description |
+|---|---|---|
+| `Data` | `[]FormSubmission` | The current page of submissions. |
+| `Total` | `int64` | Total number of matching submissions. |
+| `Page` | `int` | Current (1-based) page number. |
+| `Items` | `int` | Page size used. |
+
+**`FormSubmission`**
+
+| Field | Type | Description |
+|---|---|---|
+| `ID` | `string` | Submission UUID. |
+| `FormID` | `string` | UUID of the submitted form. |
+| `FormData` | `string` | **JSON-encoded string** of the submitted fields (the server re-serializes the payload). Unmarshal it yourself to access individual fields. |
+| `StorageType` | `string` | Where the payload is stored. |
+| `StorageURL` | `*string` | Storage location URL, when present. |
+| `SubmitterEmail` | `*string` | Submitter's email, when captured. |
+| `Recipients` | `*string` | Comma-separated notification recipients used, when present. |
+| `Attachment` | `*string` | Stored attachment reference, when present. |
+| `AttachmentName` | `*string` | Attachment filename, when present. |
+| `AttachmentURL` | `*string` | Attachment download URL, when present. |
+| `AttachmentType` | `*string` | Attachment content type, when present. |
+| `CreatedAt` | `time.Time` | When the submission was received. |
+
+---
+
+### Submission exports
+
+```go
+func (c *FormsClient) ExportFormSubmissionsCSV(ctx context.Context, formID string) ([]byte, error)
+func (c *FormsClient) ExportFormSubmissionCSV(ctx context.Context, formID, submissionID string) ([]byte, error)
+func (c *FormsClient) ExportFormSubmissionPDF(ctx context.Context, formID, submissionID string) ([]byte, error)
+```
+
+Return the raw exported file bytes. The bytes may contain PHI — handle and store them accordingly.
+
+| Method | Endpoint |
+|---|---|
+| `ExportFormSubmissionsCSV` | `GET /api/forms/{formID}/submissions/submission-csv` |
+| `ExportFormSubmissionCSV` | `GET /api/forms/{formID}/submissions/submission-csv/{submissionID}` |
+| `ExportFormSubmissionPDF` | `GET /api/forms/{formID}/submissions/{submissionID}/submission-pdf` |
+
+---
+
+**`Form`** (returned by `GetForm`, `CopyForm`, `GetPublicForm`, and in `ListFormsResponse.Results`)
+
+| Field | Type | Description |
+|---|---|---|
+| `ID` | `string` | Form UUID. |
+| `Title` | `string` | Display title. |
+| `Description` | `*string` | Optional description. |
+| `FormHTML` | `*string` | Rendered HTML, when present. |
+| `FormJSON` | `json.RawMessage` | Arbitrary form-builder JSON definition. |
+| `FormCSS` | `*string` | Custom CSS, when present. |
+| `VanityURL` | `*string` | Vanity URL slug, when set. |
+| `Version` | `int` | Form definition version. |
+| `Active` | `bool` | Whether the form accepts submissions. |
+| `CustomerID` | `int` | Owning Paubox customer ID. |
+| `OldFormID` | `*int` | Legacy form ID, when migrated. |
+| `CreatedAt` / `UpdatedAt` | `time.Time` | Creation / last-update timestamps. |
+| `Recipient` | `*string` | Comma-separated notification recipients, when configured. |
+| `Signable` | `bool` | Whether the form supports signatures. |
+| `SignatureConfirmationLabel` | `*string` | Signature confirmation checkbox label, when configured. |
+| `SubmissionCount` | `int` | Number of submissions received. |
+| `Type` | `*string` | Form type (e.g. `"marketing_form"`), when set. |
+| `SubscriptionListID` | `*string` | Linked marketing subscription list, when set. |
+| `Deleted` | `bool` | Whether the form is soft-deleted. |
+| `Archived` | `bool` | Whether the form is archived. |
+
+---
+
 ## Errors
 
-All API errors are returned as `*PauboxError`. Use `errors.Is` with sentinels to match by HTTP status, or `errors.As` to access the full detail.
+All API errors — from both the Email `Client` and the `FormsClient` — are returned as `*PauboxError`. Use `errors.Is` with sentinels to match by HTTP status, or `errors.As` to access the full detail. The two services use different error envelopes on the wire (`{"errors":[…]}` for Email, `{"message":"…"}` for Forms); the SDK normalises both into the same type.
 
 ```go
 var apiErr *paubox.PauboxError

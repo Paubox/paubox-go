@@ -109,3 +109,58 @@ func parseAPIError(statusCode int, requestID string, raw []byte) *PauboxError {
 	e.Title = http.StatusText(statusCode)
 	return e
 }
+
+// formsWireError is the error envelope used by the Paubox Forms service:
+//
+//	{"message": "..."}
+type formsWireError struct {
+	Message string `json:"message"`
+}
+
+// formsWireErrorAlt is the alternate error envelope used by a few Forms
+// service paths (e.g. the CSV export when a form has no JSON definition):
+//
+//	{"error": "..."}
+type formsWireErrorAlt struct {
+	Error string `json:"error"`
+}
+
+// parseFormsAPIError converts a non-2xx Forms service response into a
+// *[PauboxError]. The Forms error envelope is {"message": "..."}, but some
+// error paths return the Email-style envelope, {"error": "..."} (CSV export),
+// plain text (CSV/PDF exports), or an empty body — each falls back gracefully. The raw body is attached
+// for debugging but is never logged by the SDK (it may contain PHI).
+func parseFormsAPIError(statusCode int, requestID string, raw []byte) *PauboxError {
+	e := &PauboxError{
+		StatusCode: statusCode,
+		RequestID:  requestID,
+		Raw:        raw,
+	}
+
+	var fw formsWireError
+	if jsonErr := json.Unmarshal(raw, &fw); jsonErr == nil && fw.Message != "" {
+		e.Title = fw.Message
+		return e
+	}
+
+	// Fall back to the Email API envelope in case the gateway proxies one.
+	var wire wireErrors
+	if jsonErr := json.Unmarshal(raw, &wire); jsonErr == nil && len(wire.Errors) > 0 {
+		first := wire.Errors[0]
+		e.Code = fmt.Sprintf("%d", first.Code)
+		e.Title = first.Title
+		e.Details = first.Details
+		return e
+	}
+
+	// A few Forms paths use {"error": "..."} instead of {"message": "..."}.
+	var alt formsWireErrorAlt
+	if jsonErr := json.Unmarshal(raw, &alt); jsonErr == nil && alt.Error != "" {
+		e.Title = alt.Error
+		return e
+	}
+
+	// Final fallback: HTTP status text (covers plain-text and empty bodies).
+	e.Title = http.StatusText(statusCode)
+	return e
+}

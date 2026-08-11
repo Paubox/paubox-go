@@ -1,6 +1,6 @@
 # paubox-go
 
-The official Go SDK for the [Paubox](https://www.paubox.com) Email API — HIPAA-compliant transactional email for healthcare developers.
+The official Go SDK for the [Paubox](https://www.paubox.com) Email and Forms APIs — HIPAA-compliant transactional email and form collection for healthcare developers.
 
 [![CI](https://github.com/paubox/paubox-go/actions/workflows/ci.yml/badge.svg)](https://github.com/paubox/paubox-go/actions/workflows/ci.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/paubox/paubox-go.svg)](https://pkg.go.dev/github.com/paubox/paubox-go)
@@ -62,13 +62,13 @@ Find your API key and username in the [Paubox dashboard](https://app.paubox.com)
 
 ## Authentication
 
-The Paubox API uses a non-standard authorization header:
+The Paubox Email API uses a non-standard authorization header:
 
 ```
 Authorization: Token token=<API_KEY>
 ```
 
-The SDK sets this header automatically on every request. **Never construct it manually** — use `paubox.New` with your key and the SDK handles it correctly every time.
+The SDK sets this header automatically on every request. **Never construct it manually** — use `paubox.New` with your key and the SDK handles it correctly every time. (The [Paubox Forms API](#paubox-forms) uses a different scheme — scoped keys with `Bearer` auth — see below.)
 
 Store your API key in an environment variable, not in source code:
 
@@ -264,6 +264,189 @@ Content: paubox.MessageContent{
 
 ---
 
+## Paubox Forms
+
+The SDK also covers the Paubox Forms API — HIPAA-compliant form hosting and submission collection. Forms use a dedicated client, created with `paubox.NewForms`.
+
+### Forms authentication
+
+Protected Forms endpoints authenticate with a **scoped API key** carrying the `forms` scope, sent as a standard Bearer header:
+
+```
+Authorization: Bearer <SCOPED_API_KEY>
+```
+
+This is **not** the Email API's `Token token=` format — Email keys and Forms scoped keys are not interchangeable. As with the Email client, the SDK sets the header automatically; never construct it yourself.
+
+```go
+forms, err := paubox.NewForms(os.Getenv("PAUBOX_FORMS_API_KEY"))
+```
+
+Pass an **empty key** to get a public-only client. Only the two unauthenticated endpoints — `GetPublicForm` and `SubmitForm` — work on it; every other method fails fast with an error before any request is sent. This is the right client to embed in a public-facing app that only renders and submits forms:
+
+```go
+public, err := paubox.NewForms("")
+```
+
+### Forms base URL
+
+The default base URL is `https://api.paubox.com/v1/forms`. The SDK appends the Forms service routes verbatim (e.g. `/api/forms`, `/public/form_data/{id}`) — the default assumes the production gateway forwards paths under `https://api.paubox.com/v1/forms` unchanged. Use `WithFormsBaseURL` to point at a different mount, e.g. a staging gateway or a locally running Forms service:
+
+```go
+forms, err := paubox.NewForms(apiKey,
+    paubox.WithFormsBaseURL("http://localhost:3000"),
+)
+```
+
+### Forms usage
+
+<details>
+<summary><strong>Forms — list, create, get, update</strong></summary>
+
+```go
+// List — params may be nil for the server defaults
+// (page 1, 50 items, ordered by created_at descending).
+list, err := forms.ListForms(ctx, &paubox.ListFormsParams{
+    Search: "intake",
+    Active: paubox.Ptr(true),
+    Page:   1,
+    Items:  50,
+})
+for _, f := range list.Results {
+    fmt.Println(f.ID, f.Title, f.SubmissionCount)
+}
+fmt.Println("total:", list.PageInfo.Count)
+
+// Create — returns the new form's UUID.
+// Version defaults to 1 when left zero.
+created, err := forms.CreateForm(ctx, &paubox.CreateFormRequest{
+    Title:      "Patient intake",
+    CustomerID: 1234,
+    FormJSON:   json.RawMessage(`{"fields":[{"name":"first_name","type":"text"}]}`),
+    Recipient:  "intake@yourclinic.com", // comma-separated notification recipients
+    Active:     true,
+})
+fmt.Println("new form ID:", created.ID)
+
+// Get
+form, err := forms.GetForm(ctx, created.ID)
+
+// Update — PATCH-style: only non-nil fields are sent;
+// everything else is left unchanged on the server.
+updated, err := forms.UpdateForm(ctx, created.ID, &paubox.UpdateFormRequest{
+    Title:  paubox.Ptr("Patient intake v2"),
+    Active: paubox.Ptr(false),
+})
+fmt.Println(updated.Detail)
+```
+</details>
+
+<details>
+<summary><strong>Forms — archive, unarchive, copy, stats</strong></summary>
+
+```go
+// Archive — also deactivates the form, so it stops accepting submissions.
+_, err := forms.ArchiveForm(ctx, formID)
+
+// Unarchive — does NOT reactivate the form; toggle Active via UpdateForm.
+_, err = forms.UnarchiveForm(ctx, formID)
+
+// Copy — duplicates a form under a new title and returns the new Form.
+dup, err := forms.CopyForm(ctx, &paubox.CopyFormRequest{
+    FormID: formID,
+    Title:  "Patient intake (copy)",
+})
+fmt.Println("copy ID:", dup.ID)
+
+// Stats — nil params scopes the stats to the API key's customer.
+stats, err := forms.GetFormStats(ctx, nil)
+fmt.Println(stats.ActiveFormCount, stats.TotalSubmissionCount, stats.SubmissionsLast7Days)
+```
+</details>
+
+<details>
+<summary><strong>Public endpoints — fetch and submit a form (no API key)</strong></summary>
+
+These two endpoints work on any Forms client, including a keyless one from `paubox.NewForms("")`.
+
+```go
+public, err := paubox.NewForms("")
+
+// Fetch the public definition of an active form.
+// Returns 404 (paubox.ErrNotFound) when the form is inactive, archived, or deleted.
+form, err := public.GetPublicForm(ctx, formID)
+
+// Submit a filled-out form. FormData keys are the form's slugified field
+// names, sent as a real JSON object. Attachment contents are raw bytes —
+// the SDK base64-encodes them on the wire. Success returns nil.
+err = public.SubmitForm(ctx, formID, &paubox.SubmitFormRequest{
+    FormData: map[string]any{
+        "first_name": "Jane",
+        "email":      "jane@example.com",
+    },
+    Attachments: []paubox.FormSubmissionAttachment{
+        {Name: "insurance-card.pdf", Content: pdfBytes},
+    },
+})
+```
+</details>
+
+<details>
+<summary><strong>Submissions — list and export (CSV / PDF)</strong></summary>
+
+```go
+// List a form's submissions — params may be nil for the server defaults.
+subs, err := forms.ListFormSubmissions(ctx, formID, &paubox.ListFormSubmissionsParams{
+    Order: "desc",
+    Page:  1,
+})
+for _, s := range subs.Data {
+    // Note: FormData arrives as a JSON-encoded string, not an object —
+    // unmarshal it yourself if you need the individual fields.
+    fmt.Println(s.ID, s.CreatedAt, s.FormData)
+}
+
+// Exports return the raw file bytes. They may contain PHI —
+// handle and store them accordingly.
+csvAll, err := forms.ExportFormSubmissionsCSV(ctx, formID)               // all submissions
+csvOne, err := forms.ExportFormSubmissionCSV(ctx, formID, submissionID)  // one submission
+pdfOne, err := forms.ExportFormSubmissionPDF(ctx, formID, submissionID)  // one submission
+```
+</details>
+
+### Forms configuration
+
+The Forms client mirrors the Email client's options and defaults (30 s timeout, TLS 1.2 minimum, same retry policy):
+
+```go
+forms, err := paubox.NewForms(apiKey,
+    // Override the base URL (staging, tests, or a local Forms service).
+    paubox.WithFormsBaseURL("http://localhost:3000"),
+
+    // Per-request timeout.
+    paubox.WithFormsTimeout(15*time.Second),
+
+    // Provide a custom HTTP client (you own its TLS configuration).
+    paubox.WithFormsHTTPClient(myHTTPClient),
+
+    // Retry behaviour. GET requests retry up to 3× on 429/5xx with backoff
+    // + jitter. POST/PUT are not retried unless RetryNonIdempotent is true
+    // (the Forms service uses PUT for updates).
+    paubox.WithFormsRetry(paubox.RetryConfig{
+        MaxAttempts: 4,
+        WaitMin:     200 * time.Millisecond,
+        WaitMax:     5 * time.Second,
+    }),
+
+    // Prepend a custom string to the User-Agent header.
+    paubox.WithFormsUserAgent("myapp/1.0"),
+)
+```
+
+Forms API errors are returned as the same `*paubox.PauboxError` used by the Email client, so the `errors.Is` sentinels and `errors.As` patterns in the next section apply unchanged.
+
+---
+
 ## Error handling
 
 All API errors are returned as `*paubox.PauboxError`. Use `errors.As` to inspect the full error and `errors.Is` to match against status-code sentinels:
@@ -308,6 +491,7 @@ Paubox is a HIPAA-compliant email platform. This SDK is designed for use in regu
 
 - **The SDK never logs request bodies, response bodies, or API credentials.** It is deliberately silent.
 - **Do not log** `SendMessageRequest`, response objects, or `PauboxError.Raw` in your application without scrubbing — these values may contain Protected Health Information (PHI).
+- Form submissions (`FormSubmission`, `SubmitFormRequest`) and the CSV/PDF export bytes may also contain PHI — apply the same care when handling or storing them.
 - `AllowNonTLS: true` on a `Message` permits delivery without TLS encryption. Consult your compliance team before enabling this.
 - For a full security analysis of the SDK itself, see [SECURITY_REVIEW.md](SECURITY_REVIEW.md).
 

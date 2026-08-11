@@ -32,21 +32,35 @@ go install golang.org/x/vuln/cmd/govulncheck@latest
 
 ## Architecture
 
-**Module:** `github.com/paubox/paubox-go` — HIPAA-compliant transactional email SDK. **No external runtime dependencies** (stdlib only). Scope is Email API only: transactional messages + dynamic templates. The Paubox Marketing API is intentionally out of scope.
+**Module:** `github.com/paubox/paubox-go` — HIPAA-compliant SDK. **No external runtime dependencies** (stdlib only). Scope is the Email API (transactional messages + dynamic templates) **plus Paubox Forms** (forms CRUD, lifecycle, public submission, submission exports). The Paubox Marketing API is intentionally out of scope.
 
-All API calls flow through a single choke-point: `client.go:do()`. It buffers the body once for replay across retries, sets `Authorization: Token token=<key>` (the only place this header is written — don't add it elsewhere), and handles the retry loop. `doJSON()` wraps `do()` with JSON marshal/unmarshal. `doMultipartTemplate()` in `templates.go` wraps `do()` for multipart uploads.
+Two clients, two choke-points, one shared retry loop (`client.go:doHTTP()`):
 
-Base URL pattern: `https://api.paubox.net/v1/{username}/{path}` — the username is embedded by `endpointURL()`.
+- **Email** (`Client`): all calls flow through `client.go:do()`. It sets `Authorization: Token token=<key>` — the only place this header is written, don't add it elsewhere; the format is Email-only. `doJSON()` wraps `do()` with JSON marshal/unmarshal. `doMultipartTemplate()` in `templates.go` wraps `do()` for multipart uploads. Base URL pattern: `https://api.paubox.net/v1/{username}/{path}` — the username is embedded by `endpointURL()`.
+- **Forms** (`FormsClient`): all calls flow through `forms_client.go:do()`. Auth is a **scoped API key** carrying the `forms` scope, sent as `Authorization: Bearer <key>` — set only in `forms_client.go:do()`, and only when a key is present. An empty key is legal: it yields a public-only client (only `GetPublicForm`/`SubmitForm` work; every protected method fails fast via `requireKey`). URL building is `baseURL + path` with the service routes verbatim (`/api/forms`, `/public/form_data/{id}`) — no username segment. `defaultFormsBaseURL` is `https://api.paubox.com/v1/forms`, which assumes the production gateway forwards the remaining path unchanged; `WithFormsBaseURL` overrides (e.g. a local Forms service on `http://localhost:3000`).
+
+`doHTTP()` in `client.go` buffers the body once for replay across retries and runs the retry loop for both clients — keep behaviour changes there in sync with both.
+
+### Forms file layout
+
+- `forms_client.go` — `FormsClient`, `NewForms`, `WithForms*` options, `do()`/`doJSON()`
+- `forms_types.go` — all public Forms request/response types
+- `forms.go` — core CRUD: `ListForms`, `CreateForm`, `GetForm`, `UpdateForm`
+- `forms_lifecycle.go` — `ArchiveForm`, `UnarchiveForm`, `CopyForm`, `GetFormStats`
+- `forms_public.go` — public (no-auth) endpoints: `GetPublicForm`, `SubmitForm`
+- `forms_submissions.go` — `ListFormSubmissions` + CSV/PDF exports (raw bytes via `exportRaw`)
 
 ### Retry logic
 
 - GET and DELETE: retry on 429 + 5xx, up to `RetryConfig.MaxAttempts`
-- POST and PATCH: **not retried** by default (`RetryNonIdempotent: false`)
+- POST, PUT, and PATCH: **not retried** by default (`RetryNonIdempotent: false`). The Forms service uses PUT for update — treated like POST: non-idempotent.
 - Backoff: exponential × 2^(attempt-1), capped at `WaitMax`, ±20% jitter via `math/rand/v2`, honours `Retry-After` header; context cancellation respected via `select`
 
 ### Error model
 
-The API returns `{"errors":[{"code":int,"title":"...","details":"..."}]}`. `parseAPIError()` in `errors.go` handles this and produces `*PauboxError`. Sentinel errors (`ErrUnauthorized`, `ErrNotFound`, etc.) match by `StatusCode` only via `errors.Is()`.
+The Email API returns `{"errors":[{"code":int,"title":"...","details":"..."}]}`. `parseAPIError()` in `errors.go` handles this and produces `*PauboxError`. Sentinel errors (`ErrUnauthorized`, `ErrNotFound`, etc.) match by `StatusCode` only via `errors.Is()`.
+
+The Forms service envelope is different: `{"message":"..."}` (sometimes an empty body, sometimes plain text on the CSV/PDF export error paths). `parseFormsAPIError()` in `errors.go` tries the `{"message":...}` envelope first (→ `Title`), falls back to the Email `{"errors":[...]}` envelope, and finally to `http.StatusText`. It produces the same `*PauboxError`, so the sentinels work identically for both APIs.
 
 ### Dynamic template uploads
 
@@ -60,6 +74,8 @@ The Paubox API requires `template_values` to be a **JSON-encoded string**, not a
 ```
 `SendTemplatedMessage` accepts `map[string]any` from callers and marshals it to a string internally. This is hidden from callers entirely.
 
+The Forms API is the opposite on write but similar on read: `SubmitForm` sends `form_data` as a **real JSON object** (no string encoding), while `FormSubmission.FormData` on the read side arrives as a **JSON-encoded string** (the server re-serializes it) — it stays a `string` in the SDK.
+
 ### MessageHeaders custom marshalling
 
 `MessageHeaders` implements `MarshalJSON` to flatten `CustomHeaders` map entries into the top-level JSON object alongside the standard fields (`subject`, `from`, `reply-to`, etc.).
@@ -70,7 +86,7 @@ The Paubox API requires `template_values` to be a **JSON-encoded string**, not a
 
 1. Fetch the live schema from `https://docs.paubox.com/api-reference/` — don't guess from naming patterns.
 2. Add public request/response types to `*_types.go`; keep unexported wire types separate.
-3. Implement the method following the pattern in `messages.go` or `templates.go`: validate first, then call `doJSON` or `doMultipartTemplate`.
+3. Implement the method following the pattern in `messages.go` or `templates.go` (Email) or `forms.go` (Forms): validate first, then call `doJSON` / `doMultipartTemplate` / `exportRaw`. Forms endpoints take the service route verbatim against the Forms base URL.
 4. Validation errors must be prefixed `"paubox: MethodName: "`.
 5. Tests (in the same package, not `_test`): happy path, correct method+path, request body assertions, all validation cases, ≥400/401/404 error responses via `httptest.Server`.
 6. Update `README.md` (add a `<details>` usage block) and `CHANGELOG.md`.
@@ -85,7 +101,7 @@ All tests use `httptest.NewServer`/`httptest.NewTLSServer` — no live API calls
 
 ## Security constraints
 
-- The API key lives only in `c.apiKey`; never log it or include it in errors.
+- The API key lives only in `c.apiKey` (on both `Client` and `FormsClient`); never log it or include it in errors.
 - `PauboxError.Raw` is for debugging only; SDK code must never log it (may contain PHI).
 - `InsecureSkipVerify` must never be set, including in tests.
 - TLS 1.2 minimum must be maintained on the default transport.

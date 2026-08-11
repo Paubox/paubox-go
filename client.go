@@ -43,7 +43,7 @@ type RetryConfig struct {
 	// WaitMax is the maximum backoff duration between attempts.
 	WaitMax time.Duration
 
-	// RetryNonIdempotent enables retries for POST and PATCH requests.
+	// RetryNonIdempotent enables retries for POST, PUT and PATCH requests.
 	// Disabled by default because those operations are not guaranteed safe
 	// to repeat. Enable only when you know the server is idempotent.
 	RetryNonIdempotent bool
@@ -147,10 +147,23 @@ func (c *Client) endpointURL(path string) string {
 }
 
 // do executes one HTTP request with automatic authentication and retry.
-// It is the single choke-point for all outbound calls.
+// It is the single choke-point for all outbound Email API calls.
 //
 // body is read into memory once so it can be replayed across retry attempts.
 func (c *Client) do(ctx context.Context, method, path string, body io.Reader, contentType string) (*http.Response, error) {
+	// Authorization — the Paubox Email API format is non-standard; this is
+	// the only place the "Token token=" header is constructed.
+	return doHTTP(ctx, c.httpClient, c.retry, method, c.endpointURL(path), body, contentType, "Token token="+c.apiKey, c.userAgent)
+}
+
+// doHTTP is the shared retry loop used by both the Email [Client] and the
+// [FormsClient]. It buffers body once for replay across attempts, retries
+// GET/DELETE on 429 and 5xx (POST/PATCH/PUT only when RetryNonIdempotent is
+// set), and respects context cancellation.
+//
+// authorization is the full Authorization header value; when empty, the
+// header is not set (used by public Forms endpoints with a keyless client).
+func doHTTP(ctx context.Context, hc *http.Client, retry RetryConfig, method, fullURL string, body io.Reader, contentType, authorization, userAgent string) (*http.Response, error) {
 	// Buffer the body once so we can replay it on retries.
 	var bodyBytes []byte
 	if body != nil {
@@ -161,13 +174,13 @@ func (c *Client) do(ctx context.Context, method, path string, body io.Reader, co
 		bodyBytes = b
 	}
 
-	maxAttempts := c.retry.MaxAttempts
+	maxAttempts := retry.MaxAttempts
 	if maxAttempts < 1 {
 		maxAttempts = 1
 	}
 
 	isIdempotent := method == http.MethodGet || method == http.MethodDelete
-	retryEnabled := isIdempotent || c.retry.RetryNonIdempotent
+	retryEnabled := isIdempotent || retry.RetryNonIdempotent
 
 	var lastResp *http.Response
 
@@ -177,26 +190,27 @@ func (c *Client) do(ctx context.Context, method, path string, body io.Reader, co
 			reqBody = bytes.NewReader(bodyBytes)
 		}
 
-		req, err := http.NewRequestWithContext(ctx, method, c.endpointURL(path), reqBody)
+		req, err := http.NewRequestWithContext(ctx, method, fullURL, reqBody)
 		if err != nil {
 			return nil, fmt.Errorf("paubox: building request: %w", err)
 		}
 
-		// Authorization — the Paubox format is non-standard; must be set here.
-		req.Header.Set("Authorization", "Token token="+c.apiKey)
-		req.Header.Set("User-Agent", c.userAgent)
+		if authorization != "" {
+			req.Header.Set("Authorization", authorization)
+		}
+		req.Header.Set("User-Agent", userAgent)
 		req.Header.Set("Accept", "application/json")
 		if contentType != "" {
 			req.Header.Set("Content-Type", contentType)
 		}
 
-		resp, err := c.httpClient.Do(req)
+		resp, err := hc.Do(req)
 		if err != nil {
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
 			}
 			if attempt < maxAttempts && retryEnabled {
-				c.backoff(ctx, attempt, nil)
+				retryBackoff(ctx, retry, attempt, nil)
 				continue
 			}
 			return nil, fmt.Errorf("paubox: executing request: %w", err)
@@ -213,7 +227,7 @@ func (c *Client) do(ctx context.Context, method, path string, body io.Reader, co
 		lastResp = resp
 
 		if attempt < maxAttempts && retryEnabled {
-			c.backoff(ctx, attempt, resp)
+			retryBackoff(ctx, retry, attempt, resp)
 			continue
 		}
 		break // not retrying — either retryEnabled is false or we've exhausted attempts
@@ -227,10 +241,10 @@ func (c *Client) do(ctx context.Context, method, path string, body io.Reader, co
 	return nil, fmt.Errorf("paubox: request failed after %d attempts", maxAttempts)
 }
 
-// backoff sleeps for an exponentially increasing duration before the next
-// retry. It honours the Retry-After response header when present.
-func (c *Client) backoff(ctx context.Context, attempt int, resp *http.Response) {
-	wait := c.retry.WaitMin
+// retryBackoff sleeps for an exponentially increasing duration before the
+// next retry. It honours the Retry-After response header when present.
+func retryBackoff(ctx context.Context, retry RetryConfig, attempt int, resp *http.Response) {
+	wait := retry.WaitMin
 
 	if resp != nil {
 		if ra := resp.Header.Get("Retry-After"); ra != "" {
@@ -240,13 +254,16 @@ func (c *Client) backoff(ctx context.Context, attempt int, resp *http.Response) 
 		}
 	}
 
-	if wait == c.retry.WaitMin {
+	if wait == retry.WaitMin {
 		// Exponential: WaitMin × 2^(attempt-1), capped at WaitMax, plus jitter.
-		exp := c.retry.WaitMin * (1 << uint(attempt-1))
-		if exp > c.retry.WaitMax {
-			exp = c.retry.WaitMax
+		exp := retry.WaitMin * (1 << uint(attempt-1))
+		if exp > retry.WaitMax {
+			exp = retry.WaitMax
 		}
-		jitter := time.Duration(rand.Int64N(int64(exp) / 5)) //nolint:gosec // jitter does not require cryptographic randomness
+		var jitter time.Duration
+		if n := int64(exp) / 5; n > 0 { // rand.Int64N panics on n <= 0 (e.g. WaitMin 0)
+			jitter = time.Duration(rand.Int64N(n)) //nolint:gosec // jitter does not require cryptographic randomness
+		}
 		wait = exp + jitter
 	}
 
