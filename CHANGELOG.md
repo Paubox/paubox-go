@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Paubox Forms API** support via a new `FormsClient` (`paubox.NewForms(apiKey, opts...)`):
+  - Authenticates with a **scoped API key** carrying the `forms` scope, sent as
+    `Authorization: Bearer <key>`. The Email API's `Token token=` format is
+    unchanged and remains Email-only.
+  - An empty API key yields a **public-only client** on which only the
+    unauthenticated endpoints (`GetPublicForm`, `SubmitForm`) work; protected
+    methods fail fast with an error.
+  - **Forms CRUD**: `ListForms`, `CreateForm`, `GetForm`, `UpdateForm`
+  - **Lifecycle & stats**: `ArchiveForm`, `UnarchiveForm`, `CopyForm`, `GetFormStats`
+  - **Public endpoints (no auth)**: `GetPublicForm`, `SubmitForm` (attachment
+    contents are raw bytes; the SDK base64-encodes them on the wire)
+  - **Submissions**: `ListFormSubmissions`, `ExportFormSubmissionsCSV`,
+    `ExportFormSubmissionCSV`, `ExportFormSubmissionPDF` (exports return raw
+    file bytes)
+  - Functional options: `WithFormsBaseURL`, `WithFormsHTTPClient`,
+    `WithFormsTimeout`, `WithFormsRetry`, `WithFormsUserAgent`
+  - Default base URL `https://api.paubox.com/v1/forms` (assumes the production
+    gateway forwards the remaining path unchanged; override with
+    `WithFormsBaseURL`)
+  - Same retry/backoff semantics as the Email client (GET/DELETE retry on
+    429/5xx; PUT is treated as non-idempotent like POST/PATCH)
+  - The Forms `{"message": "..."}` error envelope is parsed into the existing
+    `*PauboxError` type, so `errors.Is` / `errors.As` and the status-code
+    sentinels work unchanged across both APIs
+
 ## [0.2.0] - 2026-05-28
 
 Schema corrections for the Dynamic Templates endpoints, validated against the

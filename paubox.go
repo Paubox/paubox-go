@@ -1,8 +1,11 @@
-// Package paubox provides a Go client for the Paubox Email API.
+// Package paubox provides Go clients for the Paubox Email and Forms APIs.
 //
-// Paubox delivers HIPAA-compliant transactional email. This SDK covers
-// the Email API: sending individual and batch messages, retrieving delivery
-// dispositions, and managing dynamic Handlebars templates.
+// Paubox delivers HIPAA-compliant transactional email and form collection.
+// This SDK covers the Email API — sending individual and batch messages,
+// retrieving delivery dispositions, and managing dynamic Handlebars
+// templates — and the Paubox Forms API: creating and managing forms,
+// archiving/copying and statistics, public form retrieval and submission,
+// and listing or exporting submissions (CSV/PDF).
 //
 // The SDK has zero external runtime dependencies.
 //
@@ -28,12 +31,36 @@
 //
 // # Authentication
 //
-// The Paubox API uses a non-standard authorization header format:
+// The Paubox Email API uses a non-standard authorization header format:
 //
 //	Authorization: Token token=<API_KEY>
 //
 // The client sets this header on every request automatically. You never
 // need to construct it yourself.
+//
+// # Paubox Forms
+//
+// Forms use a dedicated client created with [NewForms]. Protected Forms
+// endpoints authenticate with a scoped API key carrying the "forms" scope,
+// sent as a standard Bearer header:
+//
+//	Authorization: Bearer <SCOPED_API_KEY>
+//
+// Email keys and Forms scoped keys are not interchangeable. Passing an
+// empty key to [NewForms] yields a public-only client on which only the
+// unauthenticated endpoints — [FormsClient.GetPublicForm] and
+// [FormsClient.SubmitForm] — work:
+//
+//	forms, err := paubox.NewForms(os.Getenv("PAUBOX_FORMS_API_KEY"))
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//
+//	created, err := forms.CreateForm(ctx, &paubox.CreateFormRequest{
+//	    Title:      "Patient intake",
+//	    CustomerID: 1234,
+//	    FormJSON:   json.RawMessage(`{"fields":[]}`),
+//	})
 //
 // # Error handling
 //
