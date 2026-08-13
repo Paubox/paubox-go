@@ -11,7 +11,7 @@
 //
 // # Quick start
 //
-//	client, err := paubox.New("YOUR_API_KEY", "YOUR_USERNAME")
+//	client, err := paubox.New("YOUR_API_KEY")
 //	if err != nil {
 //	    log.Fatal(err)
 //	}

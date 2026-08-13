@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	defaultBaseURL   = "https://api.paubox.net/v1"
+	defaultBaseURL   = "https://api.paubox.com/v1"
 	defaultTimeout   = 30 * time.Second
 	defaultUserAgent = "paubox-go/0.2.0"
 )
@@ -24,7 +24,6 @@ const (
 // across requests — it is safe for concurrent use.
 type Client struct {
 	apiKey     string
-	username   string
 	baseURL    string
 	userAgent  string
 	httpClient *http.Client
@@ -104,21 +103,15 @@ func WithUserAgent(ua string) Option {
 
 // New creates a new Paubox API client.
 //
-// apiKey is your API key from the Paubox dashboard.
-// username is your API username (the endpoint username) from the dashboard.
-//
-// Both values are required and must be non-empty.
-func New(apiKey, username string, opts ...Option) (*Client, error) {
+// apiKey is your API key from the Paubox dashboard. It is required and must
+// be non-empty.
+func New(apiKey string, opts ...Option) (*Client, error) {
 	if strings.TrimSpace(apiKey) == "" {
 		return nil, fmt.Errorf("paubox: apiKey must not be empty")
-	}
-	if strings.TrimSpace(username) == "" {
-		return nil, fmt.Errorf("paubox: username must not be empty")
 	}
 
 	c := &Client{
 		apiKey:    apiKey,
-		username:  username,
 		baseURL:   defaultBaseURL,
 		userAgent: defaultUserAgent,
 		retry:     defaultRetryConfig,
@@ -139,11 +132,12 @@ func New(apiKey, username string, opts ...Option) (*Client, error) {
 	return c, nil
 }
 
-// endpointURL builds the full URL for a given path by inserting the username.
+// endpointURL builds the full URL for a given path by appending it to the
+// base URL.
 //
-//	endpointURL("/messages") → "https://api.paubox.net/v1/{username}/messages"
+//	endpointURL("/messages") → "https://api.paubox.com/v1/messages"
 func (c *Client) endpointURL(path string) string {
-	return fmt.Sprintf("%s/%s%s", c.baseURL, c.username, path)
+	return c.baseURL + path
 }
 
 // do executes one HTTP request with automatic authentication and retry.

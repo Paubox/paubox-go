@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (breaking)
+- `New` no longer takes a username: the signature is now
+  `New(apiKey string, opts ...Option)` (was `New(apiKey, username string,
+  opts ...Option)`). The Paubox Email API no longer uses a username for
+  authentication or in URLs; the `Authorization: Token token=<key>` header is
+  unchanged.
+- The default Email API base URL is now `https://api.paubox.com/v1` (was
+  `https://api.paubox.net/v1`).
+- Email API request URLs no longer contain a `{username}` path segment —
+  `endpointURL` now appends the endpoint path directly to the base URL
+  (e.g. `https://api.paubox.com/v1/messages`).
+
 ### Added
 - **Paubox Forms API** support via a new `FormsClient` (`paubox.NewForms(apiKey, opts...)`):
   - Authenticates with a **scoped API key** carrying the `forms` scope, sent as

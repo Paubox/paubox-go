@@ -5,7 +5,7 @@
 //
 // Usage:
 //
-//	PAUBOX_API_KEY=your-key PAUBOX_USERNAME=your-username go run main.go
+//	PAUBOX_API_KEY=your-key go run main.go
 package main
 
 import (
@@ -18,7 +18,7 @@ import (
 )
 
 func main() {
-	client, err := paubox.New(requireEnv("PAUBOX_API_KEY"), requireEnv("PAUBOX_USERNAME"))
+	client, err := paubox.New(requireEnv("PAUBOX_API_KEY"))
 	if err != nil {
 		log.Fatalf("paubox.New: %v", err)
 	}

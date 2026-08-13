@@ -9,13 +9,13 @@ Full reference for the `github.com/paubox/paubox-go` SDK.
 ### `New`
 
 ```go
-func New(apiKey, username string, opts ...Option) (*Client, error)
+func New(apiKey string, opts ...Option) (*Client, error)
 ```
 
-Creates a new client. Both `apiKey` and `username` are required and must be non-empty. Returns an error if either is blank or whitespace-only.
+Creates a new client. `apiKey` is required and must be non-empty. Returns an error if it is blank or whitespace-only.
 
 ```go
-client, err := paubox.New("your-api-key", "your-username")
+client, err := paubox.New("your-api-key")
 ```
 
 ### Options

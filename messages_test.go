@@ -64,8 +64,8 @@ func TestSendMessage_SendsCorrectPath(t *testing.T) {
 	defer srv.Close()
 
 	_, _ = newTestClient(t, srv).SendMessage(context.Background(), &SendMessageRequest{Message: validMessage()})
-	if gotPath != "/testuser/messages" {
-		t.Errorf("path = %q, want /testuser/messages", gotPath)
+	if gotPath != "/messages" {
+		t.Errorf("path = %q, want /messages", gotPath)
 	}
 }
 
@@ -147,7 +147,7 @@ func TestSendMessage_AllFields(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestSendMessage_NilRequest(t *testing.T) {
-	c, _ := New("k", "u")
+	c, _ := New("k")
 	_, err := c.SendMessage(context.Background(), nil)
 	if err == nil {
 		t.Fatal("expected error for nil request")
@@ -217,7 +217,7 @@ func TestSendMessage_Validation(t *testing.T) {
 		},
 	}
 
-	c, _ := New("k", "u")
+	c, _ := New("k")
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := c.SendMessage(context.Background(), &SendMessageRequest{Message: tc.msg})
@@ -330,8 +330,8 @@ func TestSendBatch_SendsCorrectPath(t *testing.T) {
 	_, _ = newTestClient(t, srv).SendBatch(context.Background(), &SendBatchRequest{
 		Messages: []Message{validMessage()},
 	})
-	if gotPath != "/testuser/bulk_messages" {
-		t.Errorf("path = %q, want /testuser/bulk_messages", gotPath)
+	if gotPath != "/bulk_messages" {
+		t.Errorf("path = %q, want /bulk_messages", gotPath)
 	}
 }
 
@@ -354,7 +354,7 @@ func TestSendBatch_Validation(t *testing.T) {
 		},
 	}
 
-	c, _ := New("k", "u")
+	c, _ := New("k")
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := c.SendBatch(context.Background(), tc.req)
@@ -446,7 +446,7 @@ func TestGetEmailDisposition_SendsTrackingIDInQuery(t *testing.T) {
 }
 
 func TestGetEmailDisposition_Validation(t *testing.T) {
-	c, _ := New("k", "u")
+	c, _ := New("k")
 
 	t.Run("empty", func(t *testing.T) {
 		_, err := c.GetEmailDisposition(context.Background(), "")

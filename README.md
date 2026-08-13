@@ -32,7 +32,7 @@ import (
 )
 
 func main() {
-    client, err := paubox.New("YOUR_API_KEY", "YOUR_API_USERNAME")
+    client, err := paubox.New("YOUR_API_KEY")
     if err != nil {
         log.Fatal(err)
     }
@@ -56,7 +56,7 @@ func main() {
 }
 ```
 
-Find your API key and username in the [Paubox dashboard](https://app.paubox.com).
+Find your API key in the [Paubox dashboard](https://app.paubox.com).
 
 ---
 
@@ -73,7 +73,7 @@ The SDK sets this header automatically on every request. **Never construct it ma
 Store your API key in an environment variable, not in source code:
 
 ```go
-client, err := paubox.New(os.Getenv("PAUBOX_API_KEY"), os.Getenv("PAUBOX_USERNAME"))
+client, err := paubox.New(os.Getenv("PAUBOX_API_KEY"))
 ```
 
 ---
@@ -226,9 +226,9 @@ resp, err := client.SendTemplatedMessage(ctx, &paubox.SendTemplatedMessageReques
 ## Configuration
 
 ```go
-client, err := paubox.New(apiKey, username,
+client, err := paubox.New(apiKey,
     // Override the base URL (useful for staging or tests).
-    paubox.WithBaseURL("https://api.paubox.net/v1"),
+    paubox.WithBaseURL("https://api.paubox.com/v1"),
 
     // Per-request timeout.
     paubox.WithTimeout(15*time.Second),

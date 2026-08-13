@@ -12,7 +12,7 @@ import (
 // newTestClient wires a Client to the given httptest.Server.
 func newTestClient(t *testing.T, srv *httptest.Server) *Client {
 	t.Helper()
-	c, err := New("test-api-key", "testuser",
+	c, err := New("test-api-key",
 		WithBaseURL(srv.URL),
 		WithTimeout(5*time.Second),
 	)
@@ -27,28 +27,21 @@ func newTestClient(t *testing.T, srv *httptest.Server) *Client {
 // ---------------------------------------------------------------------------
 
 func TestNew_EmptyAPIKey(t *testing.T) {
-	_, err := New("", "user")
+	_, err := New("")
 	if err == nil {
 		t.Fatal("expected error for empty apiKey")
 	}
 }
 
 func TestNew_WhitespaceAPIKey(t *testing.T) {
-	_, err := New("   ", "user")
+	_, err := New("   ")
 	if err == nil {
 		t.Fatal("expected error for whitespace apiKey")
 	}
 }
 
-func TestNew_EmptyUsername(t *testing.T) {
-	_, err := New("key", "")
-	if err == nil {
-		t.Fatal("expected error for empty username")
-	}
-}
-
 func TestNew_Defaults(t *testing.T) {
-	c, err := New("key", "user")
+	c, err := New("key")
 	if err != nil {
 		t.Fatalf("New() error: %v", err)
 	}
@@ -65,7 +58,7 @@ func TestNew_Defaults(t *testing.T) {
 
 func TestNew_Options(t *testing.T) {
 	customUA := "myapp/2.0"
-	c, err := New("key", "user",
+	c, err := New("key",
 		WithBaseURL("https://staging.example.com"),
 		WithTimeout(10*time.Second),
 		WithUserAgent(customUA),
@@ -89,7 +82,7 @@ func TestNew_Options(t *testing.T) {
 }
 
 func TestNew_WithBaseURL_TrailingSlash(t *testing.T) {
-	c, _ := New("key", "user", WithBaseURL("https://example.com/"))
+	c, _ := New("key", WithBaseURL("https://example.com/"))
 	if strings.HasSuffix(c.baseURL, "/") {
 		t.Errorf("baseURL should not have trailing slash, got %q", c.baseURL)
 	}
@@ -108,7 +101,7 @@ func TestClient_AuthorizationHeader(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c, err := New("my-secret-key", "user",
+	c, err := New("my-secret-key",
 		WithBaseURL(srv.URL),
 		WithHTTPClient(srv.Client()),
 	)
@@ -142,7 +135,7 @@ func TestClient_RetryOn5xx_GET(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c, _ := New("k", "u", WithBaseURL(srv.URL), WithRetry(RetryConfig{
+	c, _ := New("k", WithBaseURL(srv.URL), WithRetry(RetryConfig{
 		MaxAttempts: 3, WaitMin: 1 * time.Millisecond, WaitMax: 5 * time.Millisecond,
 	}))
 
@@ -169,7 +162,7 @@ func TestClient_RetryOn429_HonoursRetryAfter(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c, _ := New("k", "u", WithBaseURL(srv.URL), WithRetry(RetryConfig{
+	c, _ := New("k", WithBaseURL(srv.URL), WithRetry(RetryConfig{
 		MaxAttempts: 3, WaitMin: 1 * time.Millisecond, WaitMax: 5 * time.Millisecond,
 	}))
 
@@ -190,7 +183,7 @@ func TestClient_NoRetryOnPOST_ByDefault(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c, _ := New("k", "u", WithBaseURL(srv.URL), WithRetry(RetryConfig{
+	c, _ := New("k", WithBaseURL(srv.URL), WithRetry(RetryConfig{
 		MaxAttempts: 3, WaitMin: 1 * time.Millisecond, WaitMax: 5 * time.Millisecond,
 		RetryNonIdempotent: false,
 	}))
@@ -215,7 +208,7 @@ func TestClient_RetryNonIdempotent_WhenEnabled(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c, _ := New("k", "u", WithBaseURL(srv.URL), WithRetry(RetryConfig{
+	c, _ := New("k", WithBaseURL(srv.URL), WithRetry(RetryConfig{
 		MaxAttempts: 3, WaitMin: 1 * time.Millisecond, WaitMax: 5 * time.Millisecond,
 		RetryNonIdempotent: true,
 	}))
@@ -266,7 +259,7 @@ func TestClient_ContextCancellation(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c, _ := New("k", "u", WithBaseURL(srv.URL))
+	c, _ := New("k", WithBaseURL(srv.URL))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
 	defer cancel()
@@ -282,9 +275,9 @@ func TestClient_ContextCancellation(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestClient_EndpointURL(t *testing.T) {
-	c, _ := New("k", "myuser")
+	c, _ := New("k")
 	got := c.endpointURL("/messages")
-	want := "https://api.paubox.net/v1/myuser/messages"
+	want := "https://api.paubox.com/v1/messages"
 	if got != want {
 		t.Errorf("endpointURL = %q, want %q", got, want)
 	}
