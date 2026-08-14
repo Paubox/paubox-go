@@ -2,7 +2,7 @@
 //
 // Usage:
 //
-//	PAUBOX_API_KEY=your-key PAUBOX_USERNAME=your-username go run main.go
+//	PAUBOX_API_KEY=your-key go run main.go
 package main
 
 import (
@@ -17,10 +17,9 @@ import (
 
 func main() {
 	apiKey := requireEnv("PAUBOX_API_KEY")
-	username := requireEnv("PAUBOX_USERNAME")
 
 	// Create a client once and reuse it. It is safe for concurrent use.
-	client, err := paubox.New(apiKey, username,
+	client, err := paubox.New(apiKey,
 		paubox.WithTimeout(15*time.Second),
 	)
 	if err != nil {

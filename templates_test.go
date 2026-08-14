@@ -47,7 +47,7 @@ func readMultipartForm(t *testing.T, r *http.Request) *multipart.Form {
 
 func TestListTemplates_HappyPath(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet || r.URL.Path != "/testuser/dynamic_templates" {
+		if r.Method != http.MethodGet || r.URL.Path != "/dynamic_templates" {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
@@ -100,7 +100,7 @@ func TestListTemplates_Unauthorized(t *testing.T) {
 
 func TestGetTemplate_HappyPath(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/testuser/dynamic_templates/1" {
+		if r.URL.Path != "/dynamic_templates/1" {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
@@ -118,7 +118,7 @@ func TestGetTemplate_HappyPath(t *testing.T) {
 }
 
 func TestGetTemplate_EmptyID(t *testing.T) {
-	c, _ := New("k", "u")
+	c, _ := New("k")
 	_, err := c.GetTemplate(context.Background(), 0)
 	if err == nil {
 		t.Fatal("expected error for empty id")
@@ -202,7 +202,7 @@ func TestCreateTemplate_Validation(t *testing.T) {
 		{"no name", &CreateTemplateRequest{Body: []byte("x")}, "Name"},
 		{"no body", &CreateTemplateRequest{Name: "n"}, "Body"},
 	}
-	c, _ := New("k", "u")
+	c, _ := New("k")
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := c.CreateTemplate(context.Background(), tc.req)
@@ -279,7 +279,7 @@ func TestUpdateTemplate_Validation(t *testing.T) {
 		{"nil req", 1, nil, "nil"},
 		{"no fields", 1, &UpdateTemplateRequest{}, "at least one"},
 	}
-	c, _ := New("k", "u")
+	c, _ := New("k")
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := c.UpdateTemplate(context.Background(), tc.id, tc.req)
@@ -299,7 +299,7 @@ func TestUpdateTemplate_Validation(t *testing.T) {
 
 func TestDeleteTemplate_HappyPath(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodDelete || r.URL.Path != "/testuser/dynamic_templates/5" {
+		if r.Method != http.MethodDelete || r.URL.Path != "/dynamic_templates/5" {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
@@ -317,7 +317,7 @@ func TestDeleteTemplate_HappyPath(t *testing.T) {
 }
 
 func TestDeleteTemplate_EmptyID(t *testing.T) {
-	c, _ := New("k", "u")
+	c, _ := New("k")
 	_, err := c.DeleteTemplate(context.Background(), 0)
 	if err == nil {
 		t.Fatal("expected error for empty id")
@@ -412,8 +412,8 @@ func TestSendTemplatedMessage_SendsToCorrectPath(t *testing.T) {
 			Headers:    MessageHeaders{From: "f@x.com", Subject: "s"},
 		},
 	})
-	if gotPath != "/testuser/templated_messages" {
-		t.Errorf("path = %q, want /testuser/templated_messages", gotPath)
+	if gotPath != "/templated_messages" {
+		t.Errorf("path = %q, want /templated_messages", gotPath)
 	}
 }
 
@@ -466,7 +466,7 @@ func TestSendTemplatedMessage_Validation(t *testing.T) {
 		},
 	}
 
-	c, _ := New("k", "u")
+	c, _ := New("k")
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := c.SendTemplatedMessage(context.Background(), tc.req)
