@@ -497,6 +497,28 @@ Paubox is a HIPAA-compliant email platform. This SDK is designed for use in regu
 
 ---
 
+## Versioning & compatibility
+
+This SDK follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html). As of **v1.0.0** the public API is stable.
+
+**Covered by the compatibility promise** — the exported identifiers of the `paubox` package: `Client`, `FormsClient`, their methods, the request and response types, the functional options, `PauboxError` and its sentinels, and `Ptr`.
+
+**Not covered** — anything under `internal/`, the programs under `examples/`, the exact wording of error strings, and the `User-Agent` value. These may change in any release.
+
+Within 1.x, your code will keep compiling: new endpoints and new struct fields arrive as minor releases, bug fixes as patch releases. Because Go encodes the major version in the module path, a future 2.0.0 would be published as a *separate* module at `github.com/paubox/paubox-go/v2` — your existing imports keep resolving to 1.x until you deliberately migrate.
+
+Pin the major version and take minor upgrades freely:
+
+```bash
+go get github.com/paubox/paubox-go@latest
+```
+
+The running version is available at `paubox.Version`, and each release is described in [CHANGELOG.md](CHANGELOG.md).
+
+> **Upgrading from 0.x?** The 0.x line made no stability guarantees and did contain breaking changes. See [Migrating from 0.2.0](CHANGELOG.md#migrating-from-020) for the two changes you need to make.
+
+---
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).

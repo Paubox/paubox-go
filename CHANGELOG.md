@@ -2,10 +2,41 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+Entries below 1.0.0 were written by hand; from 1.0.0 onward this file is
+maintained by release-please, and pending changes live in the open release pull
+request rather than in an "Unreleased" section here.
 
-## [Unreleased]
+## [1.0.0] - 2026-08-20
+
+First stable release. The exported API of the `paubox` package is now covered
+by the compatibility policy in [README.md](README.md#versioning--compatibility);
+breaking changes from here on require a 2.x release and a new module import
+path (`github.com/paubox/paubox-go/v2`).
+
+This release also adds Paubox Forms support and completes the migration off
+the legacy `api.paubox.net` host. See **Migrating from 0.2.0** below.
+
+### Migrating from 0.2.0
+
+1. **Drop the username argument from `New`.** The Email API no longer uses a
+   username for authentication or in request URLs.
+
+   ```go
+   // before
+   client, err := paubox.New(apiKey, username)
+   // after
+   client, err := paubox.New(apiKey)
+   ```
+
+2. **Remove any hardcoded `api.paubox.net` base URL.** The default is now
+   `https://api.paubox.com/v1`. If you passed `WithBaseURL` only to pin the
+   old host, delete the option entirely; if you pointed it at a staging host,
+   confirm the staging equivalent no longer expects a `{username}` path
+   segment.
+
+3. **No changes are required for templates, messages, dispositions, retries,
+   or error handling** — those APIs are unchanged since 0.2.0.
 
 ### Changed (breaking)
 - `New` no longer takes a username: the signature is now
@@ -44,6 +75,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The Forms `{"message": "..."}` error envelope is parsed into the existing
     `*PauboxError` type, so `errors.Is` / `errors.As` and the status-code
     sentinels work unchanged across both APIs
+
+### Added (tooling)
+- Exported `paubox.Version` constant, reported in the `User-Agent` header and
+  kept in lockstep with this changelog by a test.
+- Releases are now cut by release-please: merging its release pull request
+  bumps `paubox.Version`, updates this file, and tags `vX.Y.Z`.
+- CI runs `apidiff` on every pull request and fails the build on an
+  incompatible change to the public API unless the pull request is labelled
+  `breaking change allowed`.
+- A test asserts the go.mod module path carries the `/vN` suffix required at
+  v2 and above, so a major bump cannot ship a tag the module proxy rejects.
 
 ## [0.2.0] - 2026-05-28
 
@@ -97,5 +139,5 @@ Initial public release.
 ### Requirements
 - Requires Go 1.23 or later.
 
-[Unreleased]: https://github.com/paubox/paubox-go/compare/v0.2.0...HEAD
+[1.0.0]: https://github.com/paubox/paubox-go/compare/v0.2.0...v1.0.0
 [0.1.1]: https://github.com/paubox/paubox-go/releases/tag/v0.1.1

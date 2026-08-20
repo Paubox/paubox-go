@@ -82,4 +82,18 @@
 // Callers must take care not to include Protected Health Information (PHI)
 // in log statements, error messages, or telemetry in their own code.
 // See SECURITY.md and SECURITY_REVIEW.md for detailed guidance.
+//
+// # Versioning
+//
+// This SDK follows Semantic Versioning 2.0.0. The exported identifiers of
+// this package are the public API; the internal package and the examples
+// directory are not covered. See README.md for the full compatibility
+// policy.
 package paubox
+
+// Version is the released version of this SDK. It is reported in the
+// User-Agent header of every request.
+//
+// This constant and the newest release heading in CHANGELOG.md are kept in
+// lockstep by TestVersionMatchesChangelog.
+const Version = "1.0.0"
