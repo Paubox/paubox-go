@@ -1,0 +1,58 @@
+name: apidiff
+
+on:
+  pull_request:
+    branches: [master, main]
+
+permissions:
+  contents: read
+
+jobs:
+  apidiff:
+    name: Detect breaking API changes
+    runs-on: ubuntu-latest
+    # release-please decides the next version from commit message prefixes, which
+    # trusts the author. This job checks the actual exported API instead, so a
+    # change that removes or alters a public symbol cannot ship under a `fix:`
+    # prefix and a patch bump. Apply the `breaking change allowed` label on a PR
+    # that is deliberately breaking — it must land as `feat!:` so release-please
+    # bumps major, and go.mod needs its /vN suffix updated in the same PR.
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'breaking change allowed') }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache: true
+
+      - run: go install golang.org/x/exp/cmd/apidiff@latest
+
+      - name: Fetch base branch
+        run: |
+          git fetch --no-tags --depth=1 origin \
+            "+refs/heads/${GITHUB_BASE_REF}:refs/remotes/origin/${GITHUB_BASE_REF}"
+
+      # The public API is the root package. internal/ is unimportable by
+      # consumers and examples/ are programs, so both are deliberately out of
+      # scope and can change freely.
+      - name: Build baseline from ${{ github.base_ref }}
+        run: |
+          git worktree add /tmp/baseline "origin/${GITHUB_BASE_REF}"
+          cd /tmp/baseline
+          apidiff -w /tmp/baseline.api .
+
+      - name: Compare against baseline
+        id: diff
+        run: |
+          apidiff -incompatible /tmp/baseline.api . | tee /tmp/diff.txt
+
+      - name: Fail on incompatible change
+        run: |
+          if [ -s /tmp/diff.txt ]; then
+            echo "::error::Incompatible change to the public API of package paubox."
+            echo "Land this as feat!: with the 'breaking change allowed' label, or keep the change backward compatible."
+            cat /tmp/diff.txt
+            exit 1
+          fi
+          echo "No incompatible changes to the public API."

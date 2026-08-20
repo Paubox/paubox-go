@@ -1,0 +1,72 @@
+name: release-please
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      # Maintains a release PR that bumps `const Version` in paubox.go and
+      # writes CHANGELOG.md. Merging that PR creates the tag and the release.
+      #
+      # include-component-in-tag is false in the config so tags are bare
+      # `vX.Y.Z`. The Go module proxy only resolves that form — a prefixed
+      # tag like `paubox-go-v1.0.0` would publish a release that
+      # `go get github.com/paubox/paubox-go@v1.0.0` cannot find.
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  verify:
+    name: Verify ${{ needs.release-please.outputs.tag_name }}
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache: true
+
+      - run: go mod download
+      - run: go mod verify
+
+      - name: Verify tag, version constant, and module path agree
+        env:
+          RELEASE_TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: go test -run 'TestVersion|TestModulePath' -v .
+
+      - name: Run tests with race detector
+        run: |
+          PKGS=$(go list ./... | grep -v '/examples/')
+          go test -race $PKGS
+
+      - run: go install golang.org/x/vuln/cmd/govulncheck@latest
+      - run: govulncheck ./...
+
+      # Go has no publish step: the proxy fetches straight from the tag. This
+      # only warms the cache so pkg.go.dev updates immediately instead of on
+      # whoever downloads the version first.
+      - name: Warm the Go module proxy
+        env:
+          RELEASE_TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: GOPROXY=proxy.golang.org go list -m "github.com/paubox/paubox-go@${RELEASE_TAG}"
