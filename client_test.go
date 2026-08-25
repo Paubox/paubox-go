@@ -277,7 +277,7 @@ func TestClient_ContextCancellation(t *testing.T) {
 func TestClient_EndpointURL(t *testing.T) {
 	c, _ := New("k")
 	got := c.endpointURL("/messages")
-	want := "https://api.paubox.com/v1/messages"
+	want := "https://api.paubox.com/v1/email/messages"
 	if got != want {
 		t.Errorf("endpointURL = %q, want %q", got, want)
 	}

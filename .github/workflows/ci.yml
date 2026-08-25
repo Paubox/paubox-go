@@ -80,3 +80,14 @@ jobs:
 
       - run: go install golang.org/x/vuln/cmd/govulncheck@latest
       - run: govulncheck ./...
+
+  route-check:
+    name: Base URLs are routed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Probe the base URLs the clients hardcode
+        run: |
+          grep -hoE 'https://api\.paubox\.com[a-zA-Z0-9/_.-]*' client.go forms_client.go \
+            | .github/scripts/route-check.sh
