@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	defaultBaseURL   = "https://api.paubox.com/v1"
+	defaultBaseURL   = "https://api.paubox.com/v1/email"
 	defaultTimeout   = 30 * time.Second
 	defaultUserAgent = "paubox-go/" + Version
 )
@@ -135,7 +135,7 @@ func New(apiKey string, opts ...Option) (*Client, error) {
 // endpointURL builds the full URL for a given path by appending it to the
 // base URL.
 //
-//	endpointURL("/messages") → "https://api.paubox.com/v1/messages"
+//	endpointURL("/messages") → "https://api.paubox.com/v1/email/messages"
 func (c *Client) endpointURL(path string) string {
 	return c.baseURL + path
 }

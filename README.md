@@ -228,7 +228,7 @@ resp, err := client.SendTemplatedMessage(ctx, &paubox.SendTemplatedMessageReques
 ```go
 client, err := paubox.New(apiKey,
     // Override the base URL (useful for staging or tests).
-    paubox.WithBaseURL("https://api.paubox.com/v1"),
+    paubox.WithBaseURL("https://api.paubox.com/v1/email"),
 
     // Per-request timeout.
     paubox.WithTimeout(15*time.Second),
