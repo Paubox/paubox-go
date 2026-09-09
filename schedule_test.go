@@ -50,7 +50,7 @@ func TestScheduleMessage_SendsCorrectPath(t *testing.T) {
 func TestScheduleMessage_SendsScheduledAt(t *testing.T) {
 	var body map[string]json.RawMessage
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewDecoder(r.Body).Decode(&body)
+		_ = json.NewDecoder(r.Body).Decode(&body)
 		respondJSON(w, http.StatusOK, `{"sourceTrackingId":"x","scheduledAt":"2025-12-25T15:00:00Z","state":"pending","data":"OK"}`)
 	}))
 	defer srv.Close()
@@ -63,7 +63,7 @@ func TestScheduleMessage_SendsScheduledAt(t *testing.T) {
 	var data struct {
 		ScheduledAt string `json:"scheduled_at"`
 	}
-	json.Unmarshal(body["data"], &data)
+	_ = json.Unmarshal(body["data"], &data)
 	if data.ScheduledAt != "2025-12-25T15:00:00Z" {
 		t.Errorf("scheduled_at = %q, want 2025-12-25T15:00:00Z", data.ScheduledAt)
 	}
