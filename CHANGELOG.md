@@ -7,6 +7,13 @@ Entries below 1.0.0 were written by hand; from 1.0.0 onward this file is
 maintained by release-please, and pending changes live in the open release pull
 request rather than in an "Unreleased" section here.
 
+## [1.0.1](https://github.com/Paubox/paubox-go/compare/v1.0.0...v1.0.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* target the documented /v1/email and /v1/forms base URLs ([#11](https://github.com/Paubox/paubox-go/issues/11)) ([076c172](https://github.com/Paubox/paubox-go/commit/076c172610f567bdd0132af8198e59e226f187e3))
+
 ## [1.0.0] - 2026-08-20
 
 First stable release. The exported API of the `paubox` package is now covered
