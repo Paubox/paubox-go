@@ -7,6 +7,13 @@ Entries below 1.0.0 were written by hand; from 1.0.0 onward this file is
 maintained by release-please, and pending changes live in the open release pull
 request rather than in an "Unreleased" section here.
 
+## [1.1.0](https://github.com/Paubox/paubox-go/compare/v1.0.1...v1.1.0) (2026-09-16)
+
+
+### Features
+
+* add receiving (inbound email) endpoints ([#17](https://github.com/Paubox/paubox-go/issues/17)) ([8dabee8](https://github.com/Paubox/paubox-go/commit/8dabee81813bf25363e2d1d0ab3fede6c2be8d2e))
+
 ## [1.0.1](https://github.com/Paubox/paubox-go/compare/v1.0.0...v1.0.1) (2026-08-25)
 
 

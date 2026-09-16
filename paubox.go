@@ -96,4 +96,4 @@ package paubox
 //
 // This constant and the newest release heading in CHANGELOG.md are kept in
 // lockstep by TestVersionMatchesChangelog.
-const Version = "1.0.1"
+const Version = "1.1.0"
