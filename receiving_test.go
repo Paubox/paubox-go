@@ -16,7 +16,7 @@ import (
 
 func TestListReceivingDomains_HappyPath(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		respondJSON(w, http.StatusOK, `[{"id":1,"slug":"test","domain":"test.paubox.net","status":"active","created_at":"2025-01-01T00:00:00Z","updated_at":"2025-01-01T00:00:00Z"}]`)
+		respondJSON(w, http.StatusOK, `{"data":[{"id":1,"slug":"test","domain":"test.paubox.net","state":"active","created_at":"2025-01-01T00:00:00Z","updated_at":"2025-01-01T00:00:00Z"}]}`)
 	}))
 	defer srv.Close()
 
@@ -37,7 +37,7 @@ func TestListReceivingDomains_SendsCorrectMethodAndPath(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotMethod = r.Method
 		gotPath = r.URL.Path
-		respondJSON(w, http.StatusOK, `[]`)
+		respondJSON(w, http.StatusOK, `{"data":[]}`)
 	}))
 	defer srv.Close()
 
@@ -68,7 +68,7 @@ func TestListReceivingDomains_401(t *testing.T) {
 
 func TestCreateReceivingDomain_HappyPath(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		respondJSON(w, http.StatusOK, `{"id":2,"slug":"myslug","domain":"myslug.paubox.net","status":"pending","created_at":"2025-01-01T00:00:00Z","updated_at":"2025-01-01T00:00:00Z"}`)
+		respondJSON(w, http.StatusOK, `{"data":{"id":2,"slug":"myslug","domain":"myslug.paubox.net","state":"pending","created_at":"2025-01-01T00:00:00Z","updated_at":"2025-01-01T00:00:00Z"}}`)
 	}))
 	defer srv.Close()
 
@@ -83,7 +83,7 @@ func TestCreateReceivingDomain_HappyPath(t *testing.T) {
 
 func TestCreateReceivingDomain_NilRequest(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		respondJSON(w, http.StatusOK, `{"id":3,"slug":"auto","domain":"auto.paubox.net","status":"pending","created_at":"2025-01-01T00:00:00Z","updated_at":"2025-01-01T00:00:00Z"}`)
+		respondJSON(w, http.StatusOK, `{"data":{"id":3,"slug":"auto","domain":"auto.paubox.net","state":"pending","created_at":"2025-01-01T00:00:00Z","updated_at":"2025-01-01T00:00:00Z"}}`)
 	}))
 	defer srv.Close()
 
@@ -101,7 +101,7 @@ func TestCreateReceivingDomain_SendsCorrectMethodAndPath(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotMethod = r.Method
 		gotPath = r.URL.Path
-		respondJSON(w, http.StatusOK, `{"id":1}`)
+		respondJSON(w, http.StatusOK, `{"data":{"id":1}}`)
 	}))
 	defer srv.Close()
 
@@ -118,7 +118,7 @@ func TestCreateReceivingDomain_SendsSlugInBody(t *testing.T) {
 	var gotBody map[string]any
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewDecoder(r.Body).Decode(&gotBody)
-		respondJSON(w, http.StatusOK, `{"id":1}`)
+		respondJSON(w, http.StatusOK, `{"data":{"id":1}}`)
 	}))
 	defer srv.Close()
 
@@ -134,7 +134,7 @@ func TestCreateReceivingDomain_SendsSlugInBody(t *testing.T) {
 
 func TestGetReceivingDomain_HappyPath(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		respondJSON(w, http.StatusOK, `{"id":5,"slug":"test","domain":"test.paubox.net","status":"active","created_at":"2025-01-01T00:00:00Z","updated_at":"2025-01-01T00:00:00Z"}`)
+		respondJSON(w, http.StatusOK, `{"data":{"id":5,"slug":"test","domain":"test.paubox.net","state":"active","created_at":"2025-01-01T00:00:00Z","updated_at":"2025-01-01T00:00:00Z"}}`)
 	}))
 	defer srv.Close()
 
@@ -151,7 +151,7 @@ func TestGetReceivingDomain_SendsCorrectPath(t *testing.T) {
 	var gotPath string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotPath = r.URL.Path
-		respondJSON(w, http.StatusOK, `{"id":5}`)
+		respondJSON(w, http.StatusOK, `{"data":{"id":5}}`)
 	}))
 	defer srv.Close()
 
@@ -232,7 +232,7 @@ func TestDeleteReceivingDomain_InvalidID(t *testing.T) {
 
 func TestListMailboxes_HappyPath(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		respondJSON(w, http.StatusOK, `[{"id":10,"domain_id":1,"name":"info","email":"info@test.paubox.net","created_at":"2025-01-01T00:00:00Z","updated_at":"2025-01-01T00:00:00Z"}]`)
+		respondJSON(w, http.StatusOK, `{"data":[{"id":10,"domain_id":1,"name":"info","email_address":"info@test.paubox.net","created_at":"2025-01-01T00:00:00Z","updated_at":"2025-01-01T00:00:00Z"}]}`)
 	}))
 	defer srv.Close()
 
@@ -252,7 +252,7 @@ func TestListMailboxes_SendsCorrectPath(t *testing.T) {
 	var gotPath string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotPath = r.URL.Path
-		respondJSON(w, http.StatusOK, `[]`)
+		respondJSON(w, http.StatusOK, `{"data":[]}`)
 	}))
 	defer srv.Close()
 
@@ -276,7 +276,7 @@ func TestListMailboxes_InvalidDomainID(t *testing.T) {
 
 func TestCreateMailbox_HappyPath(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		respondJSON(w, http.StatusOK, `{"id":20,"domain_id":1,"name":"support","email":"support@test.paubox.net","created_at":"2025-01-01T00:00:00Z","updated_at":"2025-01-01T00:00:00Z"}`)
+		respondJSON(w, http.StatusOK, `{"data":{"id":20,"domain_id":1,"name":"support","email_address":"support@test.paubox.net","created_at":"2025-01-01T00:00:00Z","updated_at":"2025-01-01T00:00:00Z"}}`)
 	}))
 	defer srv.Close()
 
@@ -297,7 +297,7 @@ func TestCreateMailbox_SendsCorrectMethodAndPath(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotMethod = r.Method
 		gotPath = r.URL.Path
-		respondJSON(w, http.StatusOK, `{"id":1}`)
+		respondJSON(w, http.StatusOK, `{"data":{"id":1}}`)
 	}))
 	defer srv.Close()
 
@@ -316,7 +316,7 @@ func TestCreateMailbox_SendsBody(t *testing.T) {
 	var gotBody map[string]any
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewDecoder(r.Body).Decode(&gotBody)
-		respondJSON(w, http.StatusOK, `{"id":1}`)
+		respondJSON(w, http.StatusOK, `{"data":{"id":1}}`)
 	}))
 	defer srv.Close()
 
@@ -370,7 +370,7 @@ func TestCreateMailbox_Validation(t *testing.T) {
 
 func TestGetMailbox_HappyPath(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		respondJSON(w, http.StatusOK, `{"id":10,"domain_id":1,"name":"info","email":"info@test.paubox.net","created_at":"2025-01-01T00:00:00Z","updated_at":"2025-01-01T00:00:00Z"}`)
+		respondJSON(w, http.StatusOK, `{"data":{"id":10,"domain_id":1,"name":"info","email_address":"info@test.paubox.net","created_at":"2025-01-01T00:00:00Z","updated_at":"2025-01-01T00:00:00Z"}}`)
 	}))
 	defer srv.Close()
 
@@ -387,7 +387,7 @@ func TestGetMailbox_SendsCorrectPath(t *testing.T) {
 	var gotPath string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotPath = r.URL.Path
-		respondJSON(w, http.StatusOK, `{"id":10}`)
+		respondJSON(w, http.StatusOK, `{"data":{"id":10}}`)
 	}))
 	defer srv.Close()
 
@@ -465,7 +465,7 @@ func TestDeleteMailbox_InvalidIDs(t *testing.T) {
 
 func TestListReceivedEmails_HappyPath(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		respondJSON(w, http.StatusOK, `{"emails":[{"id":"em-1","from":"sender@example.com","to":["r@example.com"],"subject":"Hi","received_at":"2025-01-01T00:00:00Z"}]}`)
+		respondJSON(w, http.StatusOK, `{"data":[{"email_id":"em-1","from":[{"address":"sender@example.com"}],"to":[{"address":"r@example.com"}],"subject":"Hi","received_at":"2025-01-01T00:00:00Z"}],"has_more":false,"object":"list"}`)
 	}))
 	defer srv.Close()
 
@@ -476,8 +476,8 @@ func TestListReceivedEmails_HappyPath(t *testing.T) {
 	if len(resp.Emails) != 1 {
 		t.Fatalf("len(Emails) = %d, want 1", len(resp.Emails))
 	}
-	if resp.Emails[0].ID != "em-1" {
-		t.Errorf("ID = %q, want em-1", resp.Emails[0].ID)
+	if resp.Emails[0].EmailID != "em-1" {
+		t.Errorf("EmailID = %q, want em-1", resp.Emails[0].EmailID)
 	}
 }
 
@@ -485,7 +485,7 @@ func TestListReceivedEmails_SendsCorrectPath(t *testing.T) {
 	var gotPath string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotPath = r.URL.Path
-		respondJSON(w, http.StatusOK, `{"emails":[]}`)
+		respondJSON(w, http.StatusOK, `{"data":[],"has_more":false,"object":"list"}`)
 	}))
 	defer srv.Close()
 
@@ -499,7 +499,7 @@ func TestListReceivedEmails_QueryParams(t *testing.T) {
 	var gotQuery string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotQuery = r.URL.RawQuery
-		respondJSON(w, http.StatusOK, `{"emails":[]}`)
+		respondJSON(w, http.StatusOK, `{"data":[],"has_more":false,"object":"list"}`)
 	}))
 	defer srv.Close()
 
@@ -525,7 +525,7 @@ func TestListReceivedEmails_QueryParams(t *testing.T) {
 
 func TestGetReceivedEmail_HappyPath(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		respondJSON(w, http.StatusOK, `{"id":"em-5","from":"s@example.com","to":["r@example.com"],"subject":"Test","body":{"text/plain":"hello"},"received_at":"2025-01-01T00:00:00Z"}`)
+		respondJSON(w, http.StatusOK, `{"data":{"email_id":"em-5","from":[{"address":"s@example.com"}],"to":[{"address":"r@example.com"}],"subject":"Test","text_body":"hello","received_at":"2025-01-01T00:00:00Z"}}`)
 	}))
 	defer srv.Close()
 
@@ -533,11 +533,11 @@ func TestGetReceivedEmail_HappyPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetReceivedEmail() error: %v", err)
 	}
-	if email.ID != "em-5" {
-		t.Errorf("ID = %q, want em-5", email.ID)
+	if email.EmailID != "em-5" {
+		t.Errorf("EmailID = %q, want em-5", email.EmailID)
 	}
-	if email.Body == nil || email.Body.PlainText == nil || *email.Body.PlainText != "hello" {
-		t.Error("Body.PlainText not populated")
+	if email.TextBody != "hello" {
+		t.Errorf("TextBody = %q, want hello", email.TextBody)
 	}
 }
 
@@ -545,7 +545,7 @@ func TestGetReceivedEmail_SendsCorrectPath(t *testing.T) {
 	var gotPath string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotPath = r.URL.Path
-		respondJSON(w, http.StatusOK, `{"id":"em-5"}`)
+		respondJSON(w, http.StatusOK, `{"data":{"email_id":"em-5"}}`)
 	}))
 	defer srv.Close()
 
