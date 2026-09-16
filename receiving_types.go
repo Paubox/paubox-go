@@ -8,17 +8,17 @@ import "encoding/json"
 
 // ReceivingDomain is a domain configured for inbound email receiving.
 type ReceivingDomain struct {
-	ID             int    `json:"id"`
-	Slug           string `json:"slug"`
-	Domain         string `json:"domain"`
-	State          string `json:"state"`
-	MXVerified     bool   `json:"mx_verified"`
-	DNSZoneFile    string `json:"dns_zone_file,omitempty"`
+	ID             int     `json:"id"`
+	Slug           string  `json:"slug"`
+	Domain         string  `json:"domain"`
+	State          string  `json:"state"`
+	MXVerified     bool    `json:"mx_verified"`
+	DNSZoneFile    string  `json:"dns_zone_file,omitempty"`
 	DKIMPublicKey  *string `json:"dkim_public_key,omitempty"`
-	ServerDomainID string `json:"server_domain_id,omitempty"`
-	CustomerID     int    `json:"customer_id,omitempty"`
-	CreatedAt      string `json:"created_at"`
-	UpdatedAt      string `json:"updated_at"`
+	ServerDomainID string  `json:"server_domain_id,omitempty"`
+	CustomerID     int     `json:"customer_id,omitempty"`
+	CreatedAt      string  `json:"created_at"`
+	UpdatedAt      string  `json:"updated_at"`
 }
 
 // CreateReceivingDomainRequest is the request for [Client.CreateReceivingDomain].
