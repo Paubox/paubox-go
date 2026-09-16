@@ -13,11 +13,11 @@ import (
 //
 // API: GET /receiving/domains
 func (c *Client) ListReceivingDomains(ctx context.Context) ([]ReceivingDomain, error) {
-	var domains []ReceivingDomain
-	if err := c.doJSON(ctx, http.MethodGet, "/receiving/domains", nil, &domains); err != nil {
+	var env receivingDomainListEnvelope
+	if err := c.doJSON(ctx, http.MethodGet, "/receiving/domains", nil, &env); err != nil {
 		return nil, err
 	}
-	return domains, nil
+	return env.Data, nil
 }
 
 // CreateReceivingDomain creates a new receiving domain. The slug is optional.
@@ -29,11 +29,11 @@ func (c *Client) CreateReceivingDomain(ctx context.Context, req *CreateReceiving
 		wire = createReceivingDomainWire{Slug: req.Slug}
 	}
 
-	var domain ReceivingDomain
-	if err := c.doJSON(ctx, http.MethodPost, "/receiving/domains", wire, &domain); err != nil {
+	var env receivingDomainDataEnvelope
+	if err := c.doJSON(ctx, http.MethodPost, "/receiving/domains", wire, &env); err != nil {
 		return nil, err
 	}
-	return &domain, nil
+	return &env.Data, nil
 }
 
 // GetReceivingDomain retrieves a single receiving domain by ID.
@@ -44,11 +44,11 @@ func (c *Client) GetReceivingDomain(ctx context.Context, domainID int) (*Receivi
 		return nil, fmt.Errorf("paubox: GetReceivingDomain: domainID must be positive")
 	}
 
-	var domain ReceivingDomain
-	if err := c.doJSON(ctx, http.MethodGet, "/receiving/domains/"+strconv.Itoa(domainID), nil, &domain); err != nil {
+	var env receivingDomainDataEnvelope
+	if err := c.doJSON(ctx, http.MethodGet, "/receiving/domains/"+strconv.Itoa(domainID), nil, &env); err != nil {
 		return nil, err
 	}
-	return &domain, nil
+	return &env.Data, nil
 }
 
 // DeleteReceivingDomain deletes a receiving domain by ID.
@@ -70,11 +70,11 @@ func (c *Client) ListMailboxes(ctx context.Context, domainID int) ([]Mailbox, er
 		return nil, fmt.Errorf("paubox: ListMailboxes: domainID must be positive")
 	}
 
-	var mailboxes []Mailbox
-	if err := c.doJSON(ctx, http.MethodGet, "/receiving/domains/"+strconv.Itoa(domainID)+"/mailboxes", nil, &mailboxes); err != nil {
+	var env mailboxListEnvelope
+	if err := c.doJSON(ctx, http.MethodGet, "/receiving/domains/"+strconv.Itoa(domainID)+"/mailboxes", nil, &env); err != nil {
 		return nil, err
 	}
-	return mailboxes, nil
+	return env.Data, nil
 }
 
 // CreateMailbox creates a new mailbox on the given receiving domain.
@@ -100,11 +100,11 @@ func (c *Client) CreateMailbox(ctx context.Context, domainID int, req *CreateMai
 		QuotaBytes: req.QuotaBytes,
 	}
 
-	var mailbox Mailbox
-	if err := c.doJSON(ctx, http.MethodPost, "/receiving/domains/"+strconv.Itoa(domainID)+"/mailboxes", wire, &mailbox); err != nil {
+	var env mailboxDataEnvelope
+	if err := c.doJSON(ctx, http.MethodPost, "/receiving/domains/"+strconv.Itoa(domainID)+"/mailboxes", wire, &env); err != nil {
 		return nil, err
 	}
-	return &mailbox, nil
+	return &env.Data, nil
 }
 
 // GetMailbox retrieves a single mailbox by domain and mailbox ID.
@@ -118,11 +118,11 @@ func (c *Client) GetMailbox(ctx context.Context, domainID, mailboxID int) (*Mail
 		return nil, fmt.Errorf("paubox: GetMailbox: mailboxID must be positive")
 	}
 
-	var mailbox Mailbox
-	if err := c.doJSON(ctx, http.MethodGet, "/receiving/domains/"+strconv.Itoa(domainID)+"/mailboxes/"+strconv.Itoa(mailboxID), nil, &mailbox); err != nil {
+	var env mailboxDataEnvelope
+	if err := c.doJSON(ctx, http.MethodGet, "/receiving/domains/"+strconv.Itoa(domainID)+"/mailboxes/"+strconv.Itoa(mailboxID), nil, &env); err != nil {
 		return nil, err
 	}
-	return &mailbox, nil
+	return &env.Data, nil
 }
 
 // DeleteMailbox deletes a mailbox by domain and mailbox ID.
@@ -175,11 +175,11 @@ func (c *Client) GetReceivedEmail(ctx context.Context, emailID string) (*Receive
 		return nil, fmt.Errorf("paubox: GetReceivedEmail: emailID must not be empty")
 	}
 
-	var email ReceivedEmail
-	if err := c.doJSON(ctx, http.MethodGet, "/receiving/"+emailID, nil, &email); err != nil {
+	var env receivedEmailDataEnvelope
+	if err := c.doJSON(ctx, http.MethodGet, "/receiving/"+emailID, nil, &env); err != nil {
 		return nil, err
 	}
-	return &email, nil
+	return &env.Data, nil
 }
 
 // DownloadAttachment downloads an attachment from a received email.
