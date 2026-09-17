@@ -7,6 +7,13 @@ Entries below 1.0.0 were written by hand; from 1.0.0 onward this file is
 maintained by release-please, and pending changes live in the open release pull
 request rather than in an "Unreleased" section here.
 
+## [1.2.0](https://github.com/Paubox/paubox-go/compare/v1.1.0...v1.2.0) (2026-09-17)
+
+
+### Features
+
+* webhook endpoint CRUD support ([#18](https://github.com/Paubox/paubox-go/issues/18)) ([4eff218](https://github.com/Paubox/paubox-go/commit/4eff2182d5f36eed89d961757d11f7eebe6b34e2))
+
 ## [1.1.0](https://github.com/Paubox/paubox-go/compare/v1.0.1...v1.1.0) (2026-09-16)
 
 
