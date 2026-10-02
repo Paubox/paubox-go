@@ -7,6 +7,13 @@ Entries below 1.0.0 were written by hand; from 1.0.0 onward this file is
 maintained by release-please, and pending changes live in the open release pull
 request rather than in an "Unreleased" section here.
 
+## [1.2.1](https://github.com/Paubox/paubox-go/compare/v1.2.0...v1.2.1) (2026-10-02)
+
+
+### Bug Fixes
+
+* **receiving:** match the UUID-based receiving API and return raw attachment bytes ([#20](https://github.com/Paubox/paubox-go/issues/20)) ([91907e7](https://github.com/Paubox/paubox-go/commit/91907e7ffd6262b4e4ea1305144fc5ba4c704c04))
+
 ## [1.2.0](https://github.com/Paubox/paubox-go/compare/v1.1.0...v1.2.0) (2026-09-17)
 
 
