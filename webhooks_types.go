@@ -13,6 +13,10 @@ type WebhookEndpoint struct {
 }
 
 // CreateWebhookEndpointRequest is the request for [Client.CreateWebhookEndpoint].
+// Valid Events are api_mail_log_delivered, api_mail_log_opened,
+// api_mail_log_temporary_failure and api_mail_log_permanent_failure. Inbound
+// mail (email.inbound.received) subscriptions are created in the Paubox
+// Dashboard, not through this API.
 type CreateWebhookEndpointRequest struct {
 	TargetURL string   `json:"target_url"`
 	Events    []string `json:"events"`
@@ -21,6 +25,7 @@ type CreateWebhookEndpointRequest struct {
 
 // UpdateWebhookEndpointRequest is the request for [Client.UpdateWebhookEndpoint].
 // Pointer fields allow callers to distinguish between "not set" and zero values.
+// Events accepts the same values as [CreateWebhookEndpointRequest].
 type UpdateWebhookEndpointRequest struct {
 	TargetURL *string   `json:"target_url,omitempty"`
 	Events    *[]string `json:"events,omitempty"`

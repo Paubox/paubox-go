@@ -3,6 +3,8 @@ package paubox
 import (
 	"context"
 	"fmt"
+	"io"
+	"mime"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -139,7 +141,8 @@ func (c *Client) DeleteMailbox(ctx context.Context, domainID, mailboxID int) err
 	return c.doJSON(ctx, http.MethodDelete, "/receiving/domains/"+strconv.Itoa(domainID)+"/mailboxes/"+strconv.Itoa(mailboxID), nil, nil)
 }
 
-// ListReceivedEmails lists received emails with optional pagination.
+// ListReceivedEmails lists received emails with optional pagination, search
+// and sorting.
 //
 // API: GET /receiving
 func (c *Client) ListReceivedEmails(ctx context.Context, req *ListReceivedEmailsRequest) (*ListReceivedEmailsResponse, error) {
@@ -155,6 +158,15 @@ func (c *Client) ListReceivedEmails(ctx context.Context, req *ListReceivedEmails
 		if req.Before != nil {
 			q.Set("before", *req.Before)
 		}
+		if req.Search != nil {
+			q.Set("search", *req.Search)
+		}
+		if req.Sort != nil {
+			q.Set("sort", *req.Sort)
+		}
+		if req.Ascending != nil {
+			q.Set("ascending", strconv.FormatBool(*req.Ascending))
+		}
 		if encoded := q.Encode(); encoded != "" {
 			path += "?" + encoded
 		}
@@ -167,7 +179,7 @@ func (c *Client) ListReceivedEmails(ctx context.Context, req *ListReceivedEmails
 	return &resp, nil
 }
 
-// GetReceivedEmail retrieves a single received email by ID.
+// GetReceivedEmail retrieves a single received email by its Paubox UUID.
 //
 // API: GET /receiving/{email_id}
 func (c *Client) GetReceivedEmail(ctx context.Context, emailID string) (*ReceivedEmail, error) {
@@ -182,20 +194,42 @@ func (c *Client) GetReceivedEmail(ctx context.Context, emailID string) (*Receive
 	return &env.Data, nil
 }
 
-// DownloadAttachment downloads an attachment from a received email.
+// DownloadAttachment downloads an attachment from a received email and
+// returns its raw bytes. emailID and attachmentID are Paubox UUIDs; the
+// attachment ID is [ReceivedAttachment.ID].
 //
-// API: GET /receiving/{email_id}/attachments/{blob_id}
-func (c *Client) DownloadAttachment(ctx context.Context, emailID, blobID string) (*AttachmentDownload, error) {
+// The returned bytes may contain PHI; handle and store them accordingly.
+//
+// API: GET /receiving/{email_id}/attachments/{attachment_id}
+func (c *Client) DownloadAttachment(ctx context.Context, emailID, attachmentID string) (*AttachmentDownload, error) {
 	if strings.TrimSpace(emailID) == "" {
 		return nil, fmt.Errorf("paubox: DownloadAttachment: emailID must not be empty")
 	}
-	if strings.TrimSpace(blobID) == "" {
-		return nil, fmt.Errorf("paubox: DownloadAttachment: blobID must not be empty")
+	if strings.TrimSpace(attachmentID) == "" {
+		return nil, fmt.Errorf("paubox: DownloadAttachment: attachmentID must not be empty")
 	}
 
-	var dl AttachmentDownload
-	if err := c.doJSON(ctx, http.MethodGet, "/receiving/"+emailID+"/attachments/"+blobID, nil, &dl); err != nil {
+	resp, err := c.do(ctx, http.MethodGet, "/receiving/"+emailID+"/attachments/"+attachmentID, nil, "")
+	if err != nil {
 		return nil, err
 	}
-	return &dl, nil
+	defer resp.Body.Close() //nolint:errcheck // close-on-defer; read errors already reported by ReadAll above
+
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("paubox: reading response body: %w", err)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, parseAPIError(resp.StatusCode, resp.Header.Get("X-Request-Id"), raw)
+	}
+
+	dl := &AttachmentDownload{
+		ContentType: resp.Header.Get("Content-Type"),
+		Content:     raw,
+	}
+	if _, params, err := mime.ParseMediaType(resp.Header.Get("Content-Disposition")); err == nil {
+		dl.FileName = params["filename"]
+	}
+	return dl, nil
 }
