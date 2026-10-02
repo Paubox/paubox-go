@@ -16,7 +16,7 @@ import (
 
 func TestListWebhookEndpoints_HappyPath(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		respondJSON(w, http.StatusOK, `[{"id":1,"target_url":"https://example.com/hook","events":["inbound_mail_received"],"active":true,"signing_key":"whsec_abc","created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}]`)
+		respondJSON(w, http.StatusOK, `[{"id":1,"target_url":"https://example.com/hook","events":["api_mail_log_delivered"],"active":true,"signing_key":"whsec_abc","created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}]`)
 	}))
 	defer srv.Close()
 
@@ -71,13 +71,13 @@ func TestListWebhookEndpoints_401(t *testing.T) {
 
 func TestCreateWebhookEndpoint_HappyPath(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		respondJSON(w, http.StatusOK, `{"message":"Webhook created!","data":{"id":42,"target_url":"https://example.com/hook","events":["inbound_mail_received"],"active":true,"signing_key":"whsec_xyz","created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}}`)
+		respondJSON(w, http.StatusOK, `{"message":"Webhook created!","data":{"id":42,"target_url":"https://example.com/hook","events":["api_mail_log_delivered"],"active":true,"signing_key":"whsec_xyz","created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}}`)
 	}))
 	defer srv.Close()
 
 	endpoint, err := newTestClient(t, srv).CreateWebhookEndpoint(context.Background(), &CreateWebhookEndpointRequest{
 		TargetURL: "https://example.com/hook",
-		Events:    []string{"inbound_mail_received"},
+		Events:    []string{"api_mail_log_delivered"},
 	})
 	if err != nil {
 		t.Fatalf("CreateWebhookEndpoint() error: %v", err)
@@ -101,7 +101,7 @@ func TestCreateWebhookEndpoint_SendsCorrectMethodAndPath(t *testing.T) {
 
 	_, _ = newTestClient(t, srv).CreateWebhookEndpoint(context.Background(), &CreateWebhookEndpointRequest{
 		TargetURL: "https://example.com/hook",
-		Events:    []string{"inbound_mail_received"},
+		Events:    []string{"api_mail_log_delivered"},
 	})
 	if gotMethod != http.MethodPost {
 		t.Errorf("method = %q, want POST", gotMethod)
@@ -121,7 +121,7 @@ func TestCreateWebhookEndpoint_SendsBody(t *testing.T) {
 
 	_, _ = newTestClient(t, srv).CreateWebhookEndpoint(context.Background(), &CreateWebhookEndpointRequest{
 		TargetURL: "https://example.com/hook",
-		Events:    []string{"api_mail_log_delivered", "inbound_mail_received"},
+		Events:    []string{"api_mail_log_delivered", "api_mail_log_permanent_failure"},
 	})
 	if gotBody["target_url"] != "https://example.com/hook" {
 		t.Errorf("target_url = %v, want https://example.com/hook", gotBody["target_url"])
@@ -142,8 +142,8 @@ func TestCreateWebhookEndpoint_Validation(t *testing.T) {
 		wantErr string
 	}{
 		{"nil request", nil, "nil"},
-		{"empty target_url", &CreateWebhookEndpointRequest{TargetURL: "", Events: []string{"inbound_mail_received"}}, "target_url"},
-		{"whitespace target_url", &CreateWebhookEndpointRequest{TargetURL: "   ", Events: []string{"inbound_mail_received"}}, "target_url"},
+		{"empty target_url", &CreateWebhookEndpointRequest{TargetURL: "", Events: []string{"api_mail_log_delivered"}}, "target_url"},
+		{"whitespace target_url", &CreateWebhookEndpointRequest{TargetURL: "   ", Events: []string{"api_mail_log_delivered"}}, "target_url"},
 		{"empty events", &CreateWebhookEndpointRequest{TargetURL: "https://example.com", Events: []string{}}, "events"},
 		{"nil events", &CreateWebhookEndpointRequest{TargetURL: "https://example.com"}, "events"},
 	}
@@ -168,7 +168,7 @@ func TestCreateWebhookEndpoint_Validation(t *testing.T) {
 
 func TestGetWebhookEndpoint_HappyPath(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		respondJSON(w, http.StatusOK, `{"data":{"id":42,"target_url":"https://example.com/hook","events":["inbound_mail_received"],"active":true,"signing_key":"whsec_abc","created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}}`)
+		respondJSON(w, http.StatusOK, `{"data":{"id":42,"target_url":"https://example.com/hook","events":["api_mail_log_delivered"],"active":true,"signing_key":"whsec_abc","created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}}`)
 	}))
 	defer srv.Close()
 
@@ -328,7 +328,7 @@ func TestUpdateWebhookEndpoint_Validation(t *testing.T) {
 
 func TestDeleteWebhookEndpoint_HappyPath(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		respondJSON(w, http.StatusOK, `{"message":"Webhook deleted!","data":{"id":42,"target_url":"https://example.com/hook","events":["inbound_mail_received"],"active":true,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}}`)
+		respondJSON(w, http.StatusOK, `{"message":"Webhook deleted!","data":{"id":42,"target_url":"https://example.com/hook","events":["api_mail_log_delivered"],"active":true,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}}`)
 	}))
 	defer srv.Close()
 
