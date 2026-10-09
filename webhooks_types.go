@@ -1,38 +1,77 @@
 package paubox
 
 // WebhookEndpoint is a configured webhook endpoint.
+//
+// IDs are UUIDs. Timestamps are RFC 3339 with microsecond precision and an
+// explicit +00:00 offset, kept as strings so no precision is lost on the way
+// through.
 type WebhookEndpoint struct {
-	ID         int      `json:"id"`
-	TargetURL  string   `json:"target_url"`
-	Events     []string `json:"events"`
-	Active     bool     `json:"active"`
-	SigningKey string   `json:"signing_key,omitempty"`
-	APIKey     *string  `json:"api_key,omitempty"`
-	CreatedAt  string   `json:"created_at"`
-	UpdatedAt  string   `json:"updated_at"`
+	ID        string   `json:"id"`
+	TargetURL string   `json:"target_url"`
+	Status    string   `json:"status"`
+	Events    []string `json:"events"`
+	CreatedAt string   `json:"created_at"`
+	UpdatedAt string   `json:"updated_at"`
 }
 
-// CreateWebhookEndpointRequest is the request for [Client.CreateWebhookEndpoint].
-// Valid Events are api_mail_log_delivered, api_mail_log_opened,
-// api_mail_log_temporary_failure and api_mail_log_permanent_failure. Inbound
-// mail (email.inbound.received) subscriptions are created in the Paubox
-// Dashboard, not through this API.
+// CreatedWebhookEndpoint is the result of [WebhooksClient.CreateWebhookEndpoint].
+//
+// SigningSecret is returned once, at creation, and never again — not by
+// GetWebhookEndpoint and not by ListWebhookEndpoints. Store it when you
+// receive it; recovering from a lost secret means replacing the endpoint.
+type CreatedWebhookEndpoint struct {
+	WebhookEndpoint
+	SigningSecret string `json:"signing_secret"`
+}
+
+// CreateWebhookEndpointRequest is the request for
+// [WebhooksClient.CreateWebhookEndpoint].
+//
+// Events are not validated client-side on purpose: the catalog is owned by the
+// service and grows without an SDK release. An event this key is not scoped
+// for is refused with 403, an unrecognised one with 422.
 type CreateWebhookEndpointRequest struct {
 	TargetURL string   `json:"target_url"`
 	Events    []string `json:"events"`
-	Active    *bool    `json:"active,omitempty"`
 }
 
-// UpdateWebhookEndpointRequest is the request for [Client.UpdateWebhookEndpoint].
-// Pointer fields allow callers to distinguish between "not set" and zero values.
-// Events accepts the same values as [CreateWebhookEndpointRequest].
+// UpdateWebhookEndpointRequest is the request for
+// [WebhooksClient.UpdateWebhookEndpoint]. Every field is optional and only the
+// ones set are sent, so an update that moves TargetURL leaves Events and
+// Status untouched.
+//
+// Status accepts "active" or "disabled".
 type UpdateWebhookEndpointRequest struct {
 	TargetURL *string   `json:"target_url,omitempty"`
+	Status    *string   `json:"status,omitempty"`
 	Events    *[]string `json:"events,omitempty"`
-	Active    *bool     `json:"active,omitempty"`
 }
 
-type webhookEndpointDataEnvelope struct {
-	Message string          `json:"message,omitempty"`
-	Data    WebhookEndpoint `json:"data"`
+// WebhookEndpointPageInfo describes a page of results. Count is the total
+// number of endpoints matching the request, not the length of this page.
+type WebhookEndpointPageInfo struct {
+	Count int `json:"count"`
+	Items int `json:"items"`
+}
+
+// WebhookEndpointList is the result of [WebhooksClient.ListWebhookEndpoints].
+type WebhookEndpointList struct {
+	Data     []WebhookEndpoint       `json:"data"`
+	PageInfo WebhookEndpointPageInfo `json:"page_info"`
+}
+
+// ListWebhookEndpointsParams are the optional query parameters for
+// [WebhooksClient.ListWebhookEndpoints].
+type ListWebhookEndpointsParams struct {
+	Page  *int
+	Items *int
+}
+
+type webhookEndpointEnvelope struct {
+	Data WebhookEndpoint `json:"data"`
+}
+
+type createdWebhookEndpointEnvelope struct {
+	Message string                 `json:"message,omitempty"`
+	Data    CreatedWebhookEndpoint `json:"data"`
 }

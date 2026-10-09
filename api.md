@@ -317,6 +317,115 @@ Returns a `*SendMessageResponse` (same as `SendMessage`).
 
 ---
 
+## Paubox Webhooks
+
+Webhook subscriptions use a dedicated client against the Paubox webhooks service. Endpoints authenticate with a **scoped API key** sent as `Authorization: Bearer <key>` — the same scheme as Forms, and a different one from the Email API's `Token token=`. Endpoint IDs are UUID strings.
+
+> **Breaking change in v2.** These five methods previously existed on the Email `*Client` and targeted the legacy Email API at `/v1/email/webhook_endpoints` with **integer** IDs. They now live on `*WebhooksClient`, target the webhooks service, and take **UUID string** IDs. Move the calls to a client built with `NewWebhooks`.
+
+### `NewWebhooks`
+
+```go
+func NewWebhooks(apiKey string, opts ...WebhooksOption) (*WebhooksClient, error)
+```
+
+Creates a new webhooks client. Unlike `NewForms`, an empty or whitespace-only key is an error — every endpoint here is authenticated, so there is no public-only mode.
+
+```go
+hooks, err := paubox.NewWebhooks("your-scoped-api-key")
+```
+
+Which events a key may subscribe to is decided by its scopes. Subscribing to an event the key is not scoped for returns `403`; an unrecognised event returns `422`.
+
+### Webhooks options
+
+| Option | Description |
+|---|---|
+| `WithWebhooksBaseURL(url string)` | Override the base URL (trailing slash trimmed). Default `https://api.paubox.com/v1/webhooks`. |
+| `WithWebhooksHTTPClient(hc *http.Client)` | Replace the default HTTP client. Caller is responsible for TLS ≥ 1.2 and not setting `InsecureSkipVerify`. |
+| `WithWebhooksTimeout(d time.Duration)` | Set the per-request timeout on the default HTTP client. Ignored if `WithWebhooksHTTPClient` is also used. |
+| `WithWebhooksRetry(cfg RetryConfig)` | Configure retry behaviour. GET/DELETE retry on 429/5xx; POST/PATCH are not retried unless `RetryNonIdempotent` is true. |
+| `WithWebhooksUserAgent(ua string)` | Prepend a custom token to the `User-Agent` header. |
+
+---
+
+### `ListWebhookEndpoints`
+
+```go
+func (c *WebhooksClient) ListWebhookEndpoints(ctx context.Context, params *ListWebhookEndpointsParams) (*WebhookEndpointList, error)
+```
+
+Returns the endpoints this key can act on. Endpoints carrying an event the key is not scoped for are filtered out by the service. Pass `nil` for defaults.
+
+`PageInfo.Count` is the **total** number of matching endpoints, not the length of the returned page.
+
+### `CreateWebhookEndpoint`
+
+```go
+func (c *WebhooksClient) CreateWebhookEndpoint(ctx context.Context, req *CreateWebhookEndpointRequest) (*CreatedWebhookEndpoint, error)
+```
+
+Subscribes a URL to one or more events. `TargetURL` must be an `https` URL resolving to a publicly routable address.
+
+The result carries `SigningSecret`, which **the service returns only here**. Store it on receipt — it is absent from `GetWebhookEndpoint` and `ListWebhookEndpoints`, and a lost secret means replacing the endpoint.
+
+```go
+created, err := hooks.CreateWebhookEndpoint(ctx, &paubox.CreateWebhookEndpointRequest{
+    TargetURL: "https://hooks.example.com/paubox",
+    Events:    []string{"forms.submission.created"},
+})
+// created.SigningSecret — persist this now
+```
+
+Event names are **not** validated client-side: the catalog is owned by the service and grows without an SDK release.
+
+### `GetWebhookEndpoint`
+
+```go
+func (c *WebhooksClient) GetWebhookEndpoint(ctx context.Context, id string) (*WebhookEndpoint, error)
+```
+
+A malformed UUID and another tenant's ID both return `404` with the same message — the service gives no existence oracle, so the two are not distinguishable.
+
+### `UpdateWebhookEndpoint`
+
+```go
+func (c *WebhooksClient) UpdateWebhookEndpoint(ctx context.Context, id string, req *UpdateWebhookEndpointRequest) (*WebhookEndpoint, error)
+```
+
+Partial update — only the fields set on `req` are sent. `Status` accepts `"active"` or `"disabled"`.
+
+```go
+_, err := hooks.UpdateWebhookEndpoint(ctx, id, &paubox.UpdateWebhookEndpointRequest{
+    Status: paubox.Ptr("disabled"),
+})
+```
+
+### `DeleteWebhookEndpoint`
+
+```go
+func (c *WebhooksClient) DeleteWebhookEndpoint(ctx context.Context, id string) error
+```
+
+Removes an endpoint, stopping every event on it. The service answers `204` with no body.
+
+### Webhook types
+
+| Type | Notes |
+|---|---|
+| `WebhookEndpoint` | `ID` (UUID string), `TargetURL`, `Status`, `Events`, `CreatedAt`, `UpdatedAt`. Timestamps are RFC 3339 with microsecond precision and a `+00:00` offset, kept as strings. |
+| `CreatedWebhookEndpoint` | Embeds `WebhookEndpoint` and adds `SigningSecret`. |
+| `CreateWebhookEndpointRequest` | `TargetURL`, `Events`. |
+| `UpdateWebhookEndpointRequest` | `TargetURL`, `Status`, `Events` — all pointers, all optional. |
+| `WebhookEndpointList` | `Data` plus `PageInfo{Count, Items}`. |
+| `ListWebhookEndpointsParams` | `Page`, `Items` — both optional pointers. |
+
+### Webhook errors
+
+Errors arrive as `{"message": "..."}` and are returned as `*PauboxError`, matching on the usual sentinels (`ErrUnauthorized`, `ErrForbidden`, `ErrNotFound`). Note a duplicate `target_url` is **`422`, not `409`**.
+
+---
+
 ## Paubox Forms
 
 The Forms API uses a dedicated client. Protected endpoints authenticate with a **scoped API key** carrying the `forms` scope, sent as `Authorization: Bearer <key>` — a different scheme from the Email API's `Token token=` header. Form and submission IDs are UUID strings.
