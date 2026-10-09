@@ -274,28 +274,51 @@ func TestGetWebhookEndpoint_UnwrapsDataAndOmitsSecret(t *testing.T) {
 	}
 }
 
-func TestGetWebhookEndpoint_RejectsEmptyID(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
-		t.Error("no request should be sent")
-	}))
-	defer srv.Close()
+// A non-UUID id is refused before a request. Without the guard a value
+// carrying ".." or "/" would change which endpoint is called, and the
+// Authorization header goes on the same host, so the key would ride along on
+// the retargeted request.
+func TestWebhookEndpoint_RejectsNonUUIDIDsBeforeAnyRequest(t *testing.T) {
+	ids := []string{"", "  ", "abc", "1", "../endpoints", "../../v1/events",
+		"2ec66c21-bf48-48eb-8d28-f80b2d6b77c7/x", "2ec66c21bf4848eb8d28f80b2d6b77c7"}
 
-	if _, err := newTestWebhooksClient(t, srv).GetWebhookEndpoint(context.Background(), "  "); err == nil {
-		t.Error("want error for blank id")
+	for _, id := range ids {
+		t.Run(id, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+				t.Errorf("no request should be sent for id %q", id)
+			}))
+			defer srv.Close()
+			c := newTestWebhooksClient(t, srv)
+
+			if _, err := c.GetWebhookEndpoint(context.Background(), id); err == nil {
+				t.Errorf("GetWebhookEndpoint(%q): want error", id)
+			}
+			if _, err := c.UpdateWebhookEndpoint(context.Background(), id,
+				&UpdateWebhookEndpointRequest{}); err == nil {
+				t.Errorf("UpdateWebhookEndpoint(%q): want error", id)
+			}
+			if err := c.DeleteWebhookEndpoint(context.Background(), id); err == nil {
+				t.Errorf("DeleteWebhookEndpoint(%q): want error", id)
+			}
+		})
 	}
 }
 
-func TestGetWebhookEndpoint_EscapesID(t *testing.T) {
+func TestGetWebhookEndpoint_AcceptsACanonicalUUID(t *testing.T) {
 	var gotPath string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotPath = r.URL.EscapedPath()
-		respondJSON(w, http.StatusOK, `{"data":{"id":"x"}}`)
+		respondJSON(w, http.StatusOK, `{"data":{"id":"2ec66c21-bf48-48eb-8d28-f80b2d6b77c7"}}`)
 	}))
 	defer srv.Close()
 
-	_, _ = newTestWebhooksClient(t, srv).GetWebhookEndpoint(context.Background(), "../endpoints")
-	if strings.Contains(gotPath, "../") {
-		t.Errorf("path = %q, want the traversal escaped", gotPath)
+	if _, err := newTestWebhooksClient(t, srv).GetWebhookEndpoint(
+		context.Background(), "2EC66C21-bf48-48eb-8d28-f80b2d6b77c7"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Mixed case is accepted and passed through unchanged.
+	if want := "/endpoints/2EC66C21-bf48-48eb-8d28-f80b2d6b77c7"; gotPath != want {
+		t.Errorf("path = %q, want %q", gotPath, want)
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -70,8 +71,8 @@ func (c *WebhooksClient) CreateWebhookEndpoint(ctx context.Context, req *CreateW
 // API: GET /endpoints/{id}
 func (c *WebhooksClient) GetWebhookEndpoint(ctx context.Context, id string) (*WebhookEndpoint, error) {
 	id = strings.TrimSpace(id)
-	if id == "" {
-		return nil, fmt.Errorf("paubox: GetWebhookEndpoint: id must not be empty")
+	if err := validateEndpointID("GetWebhookEndpoint", id); err != nil {
+		return nil, err
 	}
 
 	var env webhookEndpointEnvelope
@@ -87,8 +88,8 @@ func (c *WebhooksClient) GetWebhookEndpoint(ctx context.Context, id string) (*We
 // API: PATCH /endpoints/{id}
 func (c *WebhooksClient) UpdateWebhookEndpoint(ctx context.Context, id string, req *UpdateWebhookEndpointRequest) (*WebhookEndpoint, error) {
 	id = strings.TrimSpace(id)
-	if id == "" {
-		return nil, fmt.Errorf("paubox: UpdateWebhookEndpoint: id must not be empty")
+	if err := validateEndpointID("UpdateWebhookEndpoint", id); err != nil {
+		return nil, err
 	}
 	if req == nil {
 		return nil, fmt.Errorf("paubox: UpdateWebhookEndpoint: request must not be nil")
@@ -108,9 +109,32 @@ func (c *WebhooksClient) UpdateWebhookEndpoint(ctx context.Context, id string, r
 // API: DELETE /endpoints/{id}
 func (c *WebhooksClient) DeleteWebhookEndpoint(ctx context.Context, id string) error {
 	id = strings.TrimSpace(id)
-	if id == "" {
-		return fmt.Errorf("paubox: DeleteWebhookEndpoint: id must not be empty")
+	if err := validateEndpointID("DeleteWebhookEndpoint", id); err != nil {
+		return err
 	}
 
 	return c.doJSON(ctx, http.MethodDelete, "/endpoints/"+url.PathEscape(id), nil, nil)
+}
+
+// uuidPattern is the canonical 8-4-4-4-12 hex shape.
+var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+
+// validateEndpointID rejects an id that is not a UUID before it reaches a URL.
+//
+// url.PathEscape already turns a "/" into "%2F", so traversal is not reachable
+// through it, but that relies on nothing between here and the service decoding
+// the escape before routing. Checking the shape removes the dependency, fails
+// without a round trip, and matches every other Paubox SDK.
+//
+// This is stricter than forms.go, which escapes and sends. Every id on this
+// service is a UUID and this client is new, so there is no caller relying on
+// passing something else.
+func validateEndpointID(op, id string) error {
+	if id == "" {
+		return fmt.Errorf("paubox: %s: id must not be empty", op)
+	}
+	if !uuidPattern.MatchString(id) {
+		return fmt.Errorf("paubox: %s: id must be a UUID, got %q", op, id)
+	}
+	return nil
 }
