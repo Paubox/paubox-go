@@ -95,5 +95,13 @@ jobs:
 
       - name: Probe the base URLs the clients hardcode
         run: |
-          grep -hoE 'https://api\.paubox\.com[a-zA-Z0-9/_.-]*' client.go forms_client.go \
-            | .github/scripts/route-check.sh
+          {
+            grep -hoE 'https://api\.paubox\.com[a-zA-Z0-9/_.-]*' client.go forms_client.go
+            # The webhooks base is probed with /endpoints appended. The gateway
+            # scopes its rule to that one resource so the producers' /v1/events
+            # ingest route stays off the public host, which leaves the bare base
+            # unrouted by design — probing it directly would fail this check for
+            # a URL the client never requests on its own.
+            grep -hoE 'https://api\.paubox\.com[a-zA-Z0-9/_.-]*' webhooks_client.go \
+              | sed 's#$#/endpoints#'
+          } | .github/scripts/route-check.sh
