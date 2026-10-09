@@ -447,6 +447,91 @@ Forms API errors are returned as the same `*paubox.PauboxError` used by the Emai
 
 ---
 
+## Webhooks
+
+A webhook endpoint is a URL you own that Paubox notifies when something happens. The SDK manages those subscriptions — which URL to notify, and for which events — through a dedicated client created with `paubox.NewWebhooks`.
+
+### Webhooks authentication
+
+Like Forms, the webhooks service authenticates with a **scoped API key** sent as a Bearer header, not the Email API's `Token token=`:
+
+```go
+webhooks, err := paubox.NewWebhooks(os.Getenv("PAUBOX_WEBHOOKS_API_KEY"))
+```
+
+Which events a key may subscribe to follows from its scopes. The SDK cannot see them, so an event the key is not scoped for comes back 403 and an unrecognised one 422. An empty key is rejected at construction rather than on first use.
+
+### Webhooks base URL
+
+The default is `https://api.paubox.com/v1/webhooks`, and every request appends the `/endpoints` resource. The bare base is deliberately unrouted on the public gateway: its rule is scoped to `/endpoints` so the producers' event-ingest route stays private. Use `WithWebhooksBaseURL` to point at a staging gateway or a local service:
+
+```go
+webhooks, err := paubox.NewWebhooks(apiKey,
+    paubox.WithWebhooksBaseURL("http://localhost:3000"),
+)
+```
+
+### Webhooks usage
+
+Create a subscription:
+
+```go
+created, err := webhooks.CreateWebhookEndpoint(ctx, &paubox.CreateWebhookEndpointRequest{
+    TargetURL: "https://example.com/paubox-webhook",
+    Events:    []string{"forms.submission.created"},
+})
+if err != nil {
+    return err
+}
+
+fmt.Println(created.ID)            // UUID
+fmt.Println(created.SigningSecret) // whsec_... — store this now
+```
+
+`SigningSecret` is returned **once**, here. It is on `CreatedWebhookEndpoint` and no other type, because the service never discloses it again — recovering from a lost secret means deleting the endpoint and creating another. Use it to verify that deliveries really came from Paubox.
+
+List them, with the page metadata the service sends alongside:
+
+```go
+list, err := webhooks.ListWebhookEndpoints(ctx, nil)
+
+for _, e := range list.Data {
+    fmt.Println(e.ID, e.TargetURL, e.Status)
+}
+
+fmt.Println(list.PageInfo.Count) // total matching, not the length of Data
+```
+
+Paginate by passing params. `paubox.Ptr` is the same helper used elsewhere in this SDK:
+
+```go
+list, err := webhooks.ListWebhookEndpoints(ctx, &paubox.ListWebhookEndpointsParams{
+    Page:  paubox.Ptr(2),
+    Items: paubox.Ptr(25),
+})
+```
+
+Fetch, update and delete by UUID. Only the fields set on the update request are sent, so changing the status leaves the URL and events alone:
+
+```go
+endpoint, err := webhooks.GetWebhookEndpoint(ctx, created.ID)
+
+updated, err := webhooks.UpdateWebhookEndpoint(ctx, created.ID,
+    &paubox.UpdateWebhookEndpointRequest{Status: paubox.Ptr("disabled")})
+
+err = webhooks.DeleteWebhookEndpoint(ctx, created.ID)
+```
+
+Pausing deliveries without losing the subscription is what `"disabled"` is for; set `"active"` to resume. Setting `Events` replaces the list rather than adding to it. Delete returns only an error — the service answers 204 with no body — and takes the signing secret with it.
+
+### Webhooks errors
+
+Failures are the same `*paubox.PauboxError` the Email and Forms clients return, so the `errors.Is` sentinels and `errors.As` patterns in the next section apply unchanged. The service reports problems as `{"message": "..."}` and that text lands on `Title`.
+
+Two cases worth handling explicitly: subscribing a `TargetURL` that already has an endpoint is a 422, and an id belonging to another account is a 404 rather than a 403. An id that isn't a UUID is rejected locally, before any request is sent.
+
+---
+
 ## Error handling
 
 All API errors are returned as `*paubox.PauboxError`. Use `errors.As` to inspect the full error and `errors.Is` to match against status-code sentinels:
