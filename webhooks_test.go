@@ -279,8 +279,10 @@ func TestGetWebhookEndpoint_UnwrapsDataAndOmitsSecret(t *testing.T) {
 // Authorization header goes on the same host, so the key would ride along on
 // the retargeted request.
 func TestWebhookEndpoint_RejectsNonUUIDIDsBeforeAnyRequest(t *testing.T) {
-	ids := []string{"", "  ", "abc", "1", "../endpoints", "../../v1/events",
-		"2ec66c21-bf48-48eb-8d28-f80b2d6b77c7/x", "2ec66c21bf4848eb8d28f80b2d6b77c7"}
+	ids := []string{
+		"", "  ", "abc", "1", "../endpoints", "../../v1/events",
+		"2ec66c21-bf48-48eb-8d28-f80b2d6b77c7/x", "2ec66c21bf4848eb8d28f80b2d6b77c7",
+	}
 
 	for _, id := range ids {
 		t.Run(id, func(t *testing.T) {
