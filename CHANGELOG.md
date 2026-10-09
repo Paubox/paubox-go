@@ -7,6 +7,13 @@ Entries below 1.0.0 were written by hand; from 1.0.0 onward this file is
 maintained by release-please, and pending changes live in the open release pull
 request rather than in an "Unreleased" section here.
 
+## [1.2.2](https://github.com/Paubox/paubox-go/compare/v1.2.1...v1.2.2) (2026-10-09)
+
+
+### Bug Fixes
+
+* **ci:** let govulncheck run on the current toolchain ([#23](https://github.com/Paubox/paubox-go/issues/23)) ([b44e088](https://github.com/Paubox/paubox-go/commit/b44e0882f9d14c277a42479fd41b407e0010d1a0))
+
 ## [1.2.1](https://github.com/Paubox/paubox-go/compare/v1.2.0...v1.2.1) (2026-10-02)
 
 
