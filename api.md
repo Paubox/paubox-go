@@ -1,6 +1,6 @@
 # API Reference — paubox-go
 
-Full reference for the `github.com/paubox/paubox-go` SDK.
+Full reference for the `github.com/paubox/paubox-go/v2` SDK.
 
 ---
 

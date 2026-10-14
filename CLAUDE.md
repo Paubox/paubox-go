@@ -32,7 +32,7 @@ go install golang.org/x/vuln/cmd/govulncheck@latest
 
 ## Architecture
 
-**Module:** `github.com/paubox/paubox-go` — HIPAA-compliant SDK. **No external runtime dependencies** (stdlib only). Scope is the Email API (transactional messages + dynamic templates) **plus Paubox Forms** (forms CRUD, lifecycle, public submission, submission exports). The Paubox Marketing API is intentionally out of scope.
+**Module:** `github.com/paubox/paubox-go/v2` — HIPAA-compliant SDK. **No external runtime dependencies** (stdlib only). Scope is the Email API (transactional messages + dynamic templates) **plus Paubox Forms** (forms CRUD, lifecycle, public submission, submission exports). The Paubox Marketing API is intentionally out of scope.
 
 Two clients, two choke-points, one shared retry loop (`client.go:doHTTP()`):
 

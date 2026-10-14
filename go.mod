@@ -1,4 +1,4 @@
-module github.com/paubox/paubox-go
+module github.com/paubox/paubox-go/v2
 
 go 1.23
 

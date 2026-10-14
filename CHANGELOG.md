@@ -7,6 +7,22 @@ Entries below 1.0.0 were written by hand; from 1.0.0 onward this file is
 maintained by release-please, and pending changes live in the open release pull
 request rather than in an "Unreleased" section here.
 
+## [2.0.0](https://github.com/Paubox/paubox-go/compare/v1.2.1...v2.0.0) (2026-10-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* move webhook CRUD to the pb_webhooks service ([#22](https://github.com/Paubox/paubox-go/issues/22))
+
+### Features
+
+* move webhook CRUD to the pb_webhooks service ([#22](https://github.com/Paubox/paubox-go/issues/22)) ([805a7c4](https://github.com/Paubox/paubox-go/commit/805a7c4d29183baaa6277487c8bd73ea18e6672e))
+
+
+### Bug Fixes
+
+* **ci:** let govulncheck run on the current toolchain ([#23](https://github.com/Paubox/paubox-go/issues/23)) ([b44e088](https://github.com/Paubox/paubox-go/commit/b44e0882f9d14c277a42479fd41b407e0010d1a0))
+
 ## [1.2.1](https://github.com/Paubox/paubox-go/compare/v1.2.0...v1.2.1) (2026-10-02)
 
 
