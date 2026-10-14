@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/paubox/paubox-go/internal"
+	"github.com/paubox/paubox-go/v2/internal"
 )
 
 // ListTemplates retrieves all dynamic templates in your Paubox account.

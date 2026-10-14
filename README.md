@@ -3,7 +3,7 @@
 The official Go SDK for the [Paubox](https://www.paubox.com) Email and Forms APIs — HIPAA-compliant transactional email and form collection for healthcare developers.
 
 [![CI](https://github.com/paubox/paubox-go/actions/workflows/ci.yml/badge.svg)](https://github.com/paubox/paubox-go/actions/workflows/ci.yml)
-[![Go Reference](https://pkg.go.dev/badge/github.com/paubox/paubox-go.svg)](https://pkg.go.dev/github.com/paubox/paubox-go)
+[![Go Reference](https://pkg.go.dev/badge/github.com/paubox/paubox-go/v2.svg)](https://pkg.go.dev/github.com/paubox/paubox-go/v2)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
 ---
@@ -11,7 +11,7 @@ The official Go SDK for the [Paubox](https://www.paubox.com) Email and Forms API
 ## Install
 
 ```bash
-go get github.com/paubox/paubox-go
+go get github.com/paubox/paubox-go/v2
 ```
 
 Requires Go 1.23 or later. No external runtime dependencies.
@@ -28,7 +28,7 @@ import (
     "fmt"
     "log"
 
-    "github.com/paubox/paubox-go"
+    "github.com/paubox/paubox-go/v2"
 )
 
 func main() {
@@ -602,18 +602,18 @@ Paubox is a HIPAA-compliant email platform. This SDK is designed for use in regu
 
 ## Versioning & compatibility
 
-This SDK follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html). As of **v1.0.0** the public API is stable.
+This SDK follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html). The current major is **v2**, imported as `github.com/paubox/paubox-go/v2`.
 
 **Covered by the compatibility promise** — the exported identifiers of the `paubox` package: `Client`, `FormsClient`, their methods, the request and response types, the functional options, `PauboxError` and its sentinels, and `Ptr`.
 
 **Not covered** — anything under `internal/`, the programs under `examples/`, the exact wording of error strings, and the `User-Agent` value. These may change in any release.
 
-Within 1.x, your code will keep compiling: new endpoints and new struct fields arrive as minor releases, bug fixes as patch releases. Because Go encodes the major version in the module path, a future 2.0.0 would be published as a *separate* module at `github.com/paubox/paubox-go/v2` — your existing imports keep resolving to 1.x until you deliberately migrate.
+Within 2.x, your code will keep compiling: new endpoints and new struct fields arrive as minor releases, bug fixes as patch releases. Because Go encodes the major version in the module path, v2 is a *separate* module from v1 — imports of `github.com/paubox/paubox-go` keep resolving to 1.x until you deliberately move them to `/v2`.
 
 Pin the major version and take minor upgrades freely:
 
 ```bash
-go get github.com/paubox/paubox-go@latest
+go get github.com/paubox/paubox-go/v2@latest
 ```
 
 The running version is available at `paubox.Version`, and each release is described in [CHANGELOG.md](CHANGELOG.md).

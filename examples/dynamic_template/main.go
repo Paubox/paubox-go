@@ -12,7 +12,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/paubox/paubox-go"
+	"github.com/paubox/paubox-go/v2"
 )
 
 func main() {
