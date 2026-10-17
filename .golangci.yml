@@ -15,8 +15,11 @@ linters:
     - ineffassign    # ineffectual assignments
     - misspell       # common spelling mistakes in comments/strings
     - noctx          # HTTP requests must carry a context
+    - nolintlint     # nolint directives that no longer suppress anything
     - revive         # fast, configurable linter
     - staticcheck    # advanced static analysis (includes SA, S, ST checks)
+    - unconvert      # redundant type conversions
+    - unused         # unexported identifiers that are never used (U1000)
     - gosec          # security-focused checks
 
   settings:
